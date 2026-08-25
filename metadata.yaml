@@ -1,0 +1,36 @@
+name: Reconciliation as Code
+repository: reconciliation-as-code
+owner: dkharlanau
+visibility: public
+
+portfolio:
+  rank: 4
+  utility_today: 10
+  growth_potential: 9
+  sap_proof: 10
+  brand_value: 9
+
+status: planning
+
+implementation:
+  repository_created: true
+  implementation_status: not-started
+  codex_fit: 5/5
+  sap_access_required: false
+
+principles:
+  - versionable
+  - portable
+  - machine-readable
+  - deterministic-first
+  - visual
+  - git-friendly
+  - interoperable
+
+primary_users:
+  - SAP consultants
+  - enterprise architects
+  - data consultants
+  - integration consultants
+  - business analysts
+  - transformation teams
