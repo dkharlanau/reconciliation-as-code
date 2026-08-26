@@ -10,7 +10,7 @@ from . import __version__
 from .engine import run_reconciliation
 from .errors import ReconciliationError
 from .profiling import generate_spec, inspect_dataset, render_generated_spec
-from .report import write_json, write_markdown
+from .report import prepare_evidence, write_bundle, write_json, write_markdown
 from .schema import SCHEMA_FILES, schema_text
 from .spec import load_spec
 
@@ -30,6 +30,10 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("spec", help="Path to reconciliation YAML.")
     run.add_argument("--evidence", default="build/evidence.json", help="Evidence JSON output path.")
     run.add_argument("--report", default="build/evidence.md", help="Markdown report output path.")
+    run.add_argument(
+        "--bundle",
+        help="Create a self-contained evidence directory with JSON, Markdown, HTML, XLSX, CSV details and manifest.",
+    )
     run.add_argument(
         "--no-fail-on-diff",
         action="store_true",
@@ -133,9 +137,13 @@ def main(argv: list[str] | None = None) -> int:
             print(f"valid: {spec_path} version={spec.get('version', 1)}")
             return 0
 
-        result = run_reconciliation(spec, base_dir=spec_path.parent, spec_path=spec_path)
+        raw_result = run_reconciliation(spec, base_dir=spec_path.parent, spec_path=spec_path)
+        result = prepare_evidence(raw_result, spec)
         write_json(result, args.evidence)
         write_markdown(result, args.report)
+        if args.bundle:
+            manifest = write_bundle(result, args.bundle)
+            print(f"bundle={Path(args.bundle).resolve()} files={len(manifest['files'])}")
         print(json.dumps(result["summary"], ensure_ascii=False))
         print(
             f"status={result['status']} run_id={result['run']['id']} "
