@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/dkharlanau/reconciliation-as-code/schema/evidence-diff.schema.json",
+  "title": "Reconciliation as Code rehearsal evidence diff",
+  "type": "object",
+  "required": ["schema_version", "reconciliation", "baseline", "current", "compatibility", "summary", "check_transitions", "discrepancies"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "reconciliation": {"type": "string", "minLength": 1},
+    "baseline": {"$ref": "#/$defs/runRef"},
+    "current": {"$ref": "#/$defs/runRef"},
+    "compatibility": {
+      "type": "object",
+      "required": ["evidence_schema_changed", "spec_version_changed", "engine_version_changed", "configuration_changed"],
+      "properties": {
+        "evidence_schema_changed": {"type": "boolean"},
+        "spec_version_changed": {"type": "boolean"},
+        "engine_version_changed": {"type": "boolean"},
+        "configuration_changed": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "object",
+      "required": ["baseline_status", "current_status", "new_discrepancies", "resolved_discrepancies", "persistent_discrepancies", "changed_discrepancies", "checks_regressed", "checks_improved", "regression", "improvement"],
+      "properties": {
+        "baseline_status": {"type": ["string", "null"]},
+        "current_status": {"type": ["string", "null"]},
+        "baseline_checks_failed": {"type": ["integer", "null"]},
+        "current_checks_failed": {"type": ["integer", "null"]},
+        "new_discrepancies": {"type": "integer", "minimum": 0},
+        "resolved_discrepancies": {"type": "integer", "minimum": 0},
+        "persistent_discrepancies": {"type": "integer", "minimum": 0},
+        "changed_discrepancies": {"type": "integer", "minimum": 0},
+        "checks_regressed": {"type": "integer", "minimum": 0},
+        "checks_improved": {"type": "integer", "minimum": 0},
+        "regression": {"type": "boolean"},
+        "improvement": {"type": "boolean"}
+      },
+      "additionalProperties": true
+    },
+    "check_transitions": {"type": "array", "items": {"$ref": "#/$defs/checkTransition"}},
+    "discrepancies": {
+      "type": "object",
+      "required": ["new", "resolved", "persistent", "changed"],
+      "properties": {
+        "new": {"type": "array", "items": {"$ref": "#/$defs/discrepancy"}},
+        "resolved": {"type": "array", "items": {"$ref": "#/$defs/discrepancy"}},
+        "persistent": {"type": "array", "items": {"$ref": "#/$defs/discrepancy"}},
+        "changed": {"type": "array", "items": {"$ref": "#/$defs/changedDiscrepancy"}}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "runRef": {
+      "type": "object",
+      "required": ["path", "run_id", "status", "schema_version", "configuration_sha256", "summary", "evidence_sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "run_id": {"type": ["string", "null"]},
+        "generated_at": {"type": ["string", "null"]},
+        "status": {"type": ["string", "null"]},
+        "schema_version": {"type": ["string", "null"]},
+        "spec_version": {"type": ["integer", "null"]},
+        "engine_version": {"type": ["string", "null"]},
+        "configuration_sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "summary": {"type": "object"},
+        "evidence_sha256": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": true
+    },
+    "checkTransition": {
+      "type": "object",
+      "required": ["id", "transition", "metric_changes"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "type": {"type": ["string", "null"]},
+        "baseline_status": {"type": ["string", "null"]},
+        "current_status": {"type": ["string", "null"]},
+        "baseline_severity": {"type": ["string", "null"]},
+        "current_severity": {"type": ["string", "null"]},
+        "transition": {"enum": ["regressed", "improved", "unchanged", "changed", "added", "removed"]},
+        "metric_changes": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "discrepancy": {
+      "type": "object",
+      "required": ["identity", "check_id", "check_type", "locator", "detail", "content_sha256"],
+      "properties": {
+        "identity": {"$ref": "#/$defs/sha256"},
+        "check_id": {"type": ["string", "null"]},
+        "check_type": {"type": ["string", "null"]},
+        "severity": {"type": ["string", "null"]},
+        "check_status": {"type": ["string", "null"]},
+        "locator": {"type": "object"},
+        "detail": {"type": "object"},
+        "content_sha256": {"$ref": "#/$defs/sha256"},
+        "disposition": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "changedDiscrepancy": {
+      "type": "object",
+      "required": ["identity", "check_id", "locator", "baseline", "current"],
+      "properties": {
+        "identity": {"$ref": "#/$defs/sha256"},
+        "check_id": {"type": ["string", "null"]},
+        "check_type": {"type": ["string", "null"]},
+        "locator": {"type": "object"},
+        "baseline": {"$ref": "#/$defs/discrepancy"},
+        "current": {"$ref": "#/$defs/discrepancy"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

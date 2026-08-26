@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0",
+  "spec_version": 1,
+  "engine_version": "0.1.0",
+  "configuration_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "run": {
+    "id": "rehearsal-1",
+    "started_at": "2026-08-10T08:00:00+00:00",
+    "finished_at": "2026-08-10T08:00:02+00:00",
+    "duration_ms": 2000,
+    "python_version": "3.12.0",
+    "platform": "example"
+  },
+  "reconciliation": "Customer migration rehearsal",
+  "description": "Committed evidence fixture; original source/target files are intentionally absent.",
+  "status": "failed",
+  "generated_at": "2026-08-10T08:00:02+00:00",
+  "inputs": {
+    "source": {"path": "legacy-export.csv", "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+    "target": {"path": "s4-export.csv", "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
+  },
+  "summary": {
+    "source_records": 3,
+    "target_records": 3,
+    "matched_records": 3,
+    "missing_in_target": 0,
+    "unexpected_in_target": 0,
+    "checks_total": 3,
+    "checks_failed": 3,
+    "warnings_failed": 0
+  },
+  "checks": [
+    {
+      "id": "customer-name",
+      "type": "field_match",
+      "severity": "error",
+      "status": "failed",
+      "metrics": {"compared": 3, "mismatches": 1, "max_mismatches": 0, "source_field": "NAME", "target_field": "NAME"},
+      "details": [{"key": "1001", "source": "Acme Retail", "target": "Acme Retail GmbH", "normalized_source": "Acme Retail", "normalized_target": "Acme Retail GmbH"}],
+      "details_truncated": false
+    },
+    {
+      "id": "country",
+      "type": "field_match",
+      "severity": "error",
+      "status": "failed",
+      "metrics": {"compared": 3, "mismatches": 1, "max_mismatches": 0, "source_field": "COUNTRY", "target_field": "COUNTRY"},
+      "details": [{"key": "1002", "source": "DE", "target": "US", "normalized_source": "DE", "normalized_target": "US"}],
+      "details_truncated": false
+    },
+    {
+      "id": "credit-by-country",
+      "type": "aggregate_match",
+      "severity": "error",
+      "status": "failed",
+      "metrics": {"operation": "sum", "groups_compared": 2, "groups_failed": 1, "tolerance": "0", "source_group_by": ["COUNTRY"], "target_group_by": ["COUNTRY"], "source_field": "CREDIT_LIMIT", "target_field": "CREDIT_LIMIT"},
+      "details": [{"group": "DE", "source_value": "10000", "target_value": "9000", "absolute_difference": "1000", "percentage_difference": "10"}],
+      "details_truncated": false
+    }
+  ]
+}

@@ -9,6 +9,7 @@ from .errors import SpecError
 SCHEMA_FILES = {
     "spec": "reconciliation.schema.json",
     "evidence": "evidence.schema.json",
+    "diff": "evidence-diff.schema.json",
 }
 
 
