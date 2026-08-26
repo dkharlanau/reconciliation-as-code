@@ -1,0 +1,34 @@
+name: wire-diff-cli-v2
+
+on:
+  push:
+    branches: [agent/run-diff]
+    paths:
+      - .github/workflows/wire-diff-cli-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/run-diff
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/wire_diff_cli_v2.py
+      - name: Commit final CLI wiring
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No wiring changes required"
+          else
+            git commit -m "Wire rac diff command and diff schema"
+            git push origin HEAD:agent/run-diff
+          fi
