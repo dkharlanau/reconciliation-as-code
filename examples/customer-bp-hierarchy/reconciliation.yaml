@@ -1,0 +1,85 @@
+version: 1
+
+object:
+  type: CustomerBP
+
+reconciliation:
+  name: SAP S/4HANA Customer to Business Partner hierarchical reconciliation
+  description: Prove root Customer/BP data plus addresses and sales-area collections.
+
+source:
+  file: legacy_customers.csv
+  key: CUSTOMER_ID
+  key_normalize: [trim]
+
+target:
+  file: business_partners.csv
+  key: LEGACY_ID
+  key_normalize: [trim]
+
+checks:
+  - id: root-coverage
+    type: record_coverage
+
+  - id: name
+    type: field_match
+    source: NAME
+    target: NAME
+    normalize: [trim]
+
+  - id: country
+    type: field_match
+    source: COUNTRY
+    target: COUNTRY
+    normalize: [trim, uppercase]
+
+children:
+  addresses:
+    description: Repeating business-partner address collection.
+    source:
+      file: legacy_addresses.csv
+      key: [CUSTOMER_ID, ADDRESS_TYPE]
+      parent_key: CUSTOMER_ID
+      key_normalize: [trim]
+    target:
+      file: bp_addresses.csv
+      key: [LEGACY_ID, ADDRESS_TYPE]
+      parent_key: LEGACY_ID
+      key_normalize: [trim]
+    checks:
+      - id: coverage
+        type: record_coverage
+      - id: city
+        type: field_match
+        source: CITY
+        target: CITY
+        normalize: [trim]
+      - id: postal-code
+        type: field_match
+        source: POSTAL_CODE
+        target: POSTAL_CODE
+        normalize: [trim, uppercase]
+
+  sales_areas:
+    description: Organizational sales-area views for the migrated customer.
+    source:
+      file: legacy_sales_areas.csv
+      key: [CUSTOMER_ID, SALES_ORG, DIST_CHANNEL, DIVISION]
+      parent_key: CUSTOMER_ID
+      key_normalize: [trim]
+    target:
+      file: bp_sales_areas.csv
+      key: [LEGACY_ID, SALES_ORG, DIST_CHANNEL, DIVISION]
+      parent_key: LEGACY_ID
+      key_normalize: [trim]
+    checks:
+      - id: coverage
+        type: record_coverage
+      - id: currency
+        type: field_match
+        source: CURRENCY
+        target: CURRENCY
+        normalize: [trim, uppercase]
+
+evidence:
+  detail_limit: 100
