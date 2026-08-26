@@ -6,6 +6,11 @@
   "required": ["version", "reconciliation", "source", "target", "checks"],
   "properties": {
     "version": {"const": 1},
+    "object": {
+      "type": "object",
+      "properties": {"type": {"type": "string", "minLength": 1}},
+      "additionalProperties": true
+    },
     "reconciliation": {
       "type": "object",
       "required": ["name"],
@@ -17,24 +22,27 @@
     },
     "source": {"$ref": "#/$defs/endpoint"},
     "target": {"$ref": "#/$defs/endpoint"},
-    "scopes": {
+    "scopes": {"type": "object", "additionalProperties": {"$ref": "#/$defs/scope"}},
+    "checks": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/check"}},
+    "children": {
       "type": "object",
-      "additionalProperties": {"$ref": "#/$defs/scope"}
+      "minProperties": 1,
+      "additionalProperties": {"$ref": "#/$defs/childCollection"}
     },
-    "checks": {
-      "type": "array",
-      "minItems": 1,
-      "items": {"$ref": "#/$defs/check"}
+    "exceptions": {
+      "type": "object",
+      "required": ["file"],
+      "properties": {
+        "file": {"type": "string", "minLength": 1},
+        "expiry_policy": {"enum": ["error", "warning"]}
+      },
+      "additionalProperties": false
     },
     "evidence": {
       "type": "object",
       "properties": {
         "detail_limit": {"type": "integer", "minimum": 0},
-        "sensitive_fields": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {"type": "string", "minLength": 1}
-        },
+        "sensitive_fields": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
         "sensitive_value_mode": {"enum": ["mask", "hash", "omit"]},
         "key_mode": {"enum": ["plain", "hash"]}
       },
@@ -65,10 +73,7 @@
     "scope": {
       "type": "object",
       "minProperties": 1,
-      "properties": {
-        "source": {"$ref": "#/$defs/predicate"},
-        "target": {"$ref": "#/$defs/predicate"}
-      },
+      "properties": {"source": {"$ref": "#/$defs/predicate"}, "target": {"$ref": "#/$defs/predicate"}},
       "additionalProperties": false
     },
     "endpoint": {
@@ -82,6 +87,32 @@
         "sheet": {"type": "string"},
         "key_normalize": {"type": "array", "items": {"type": "string"}},
         "filter": {"$ref": "#/$defs/predicate"}
+      },
+      "additionalProperties": true
+    },
+    "childEndpoint": {
+      "allOf": [
+        {"$ref": "#/$defs/endpoint"},
+        {
+          "type": "object",
+          "required": ["parent_key"],
+          "properties": {
+            "parent_key": {"$ref": "#/$defs/stringOrStringArray"},
+            "parent_key_normalize": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      ]
+    },
+    "childCollection": {
+      "type": "object",
+      "required": ["source", "target", "checks"],
+      "properties": {
+        "description": {"type": "string"},
+        "source": {"$ref": "#/$defs/childEndpoint"},
+        "target": {"$ref": "#/$defs/childEndpoint"},
+        "duplicate_policy": {"enum": ["error", "warning"]},
+        "scopes": {"type": "object", "additionalProperties": {"$ref": "#/$defs/scope"}},
+        "checks": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/check"}}
       },
       "additionalProperties": true
     },
@@ -109,10 +140,7 @@
         "group_by": {
           "type": "object",
           "required": ["source", "target"],
-          "properties": {
-            "source": {"$ref": "#/$defs/stringOrStringArray"},
-            "target": {"$ref": "#/$defs/stringOrStringArray"}
-          },
+          "properties": {"source": {"$ref": "#/$defs/stringOrStringArray"}, "target": {"$ref": "#/$defs/stringOrStringArray"}},
           "additionalProperties": false
         }
       },
