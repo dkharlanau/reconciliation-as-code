@@ -24,6 +24,7 @@ jobs:
       - run: python -m unittest discover -s tests -v
       - run: rac validate examples/customer-migration/reconciliation.yaml
       - run: rac validate examples/scoped-controls/reconciliation.yaml
+      - run: rac validate examples/customer-object/reconciliation.yaml
       - run: rac schema evidence --output build/evidence.schema.json
       - name: Smoke-test evidence generation
         run: rac run examples/customer-migration/reconciliation.yaml --evidence build/evidence.json --report build/evidence.md --no-fail-on-diff
@@ -34,6 +35,13 @@ jobs:
           --report build/scoped-evidence.md
           --bundle build/scoped-bundle
           --no-fail-on-diff
+      - name: Smoke-test hierarchical customer evidence bundle
+        run: >-
+          rac run examples/customer-object/reconciliation.yaml
+          --evidence build/customer-object-evidence.json
+          --report build/customer-object-evidence.md
+          --bundle build/customer-object-bundle
+          --no-fail-on-diff
       - name: Validate generated evidence schema
         run: >-
           python -c "import json; from jsonschema import validate;
@@ -41,6 +49,8 @@ jobs:
           validate(json.load(open('build/evidence.json')), schema);
           validate(json.load(open('build/scoped-evidence.json')), schema);
           validate(json.load(open('build/scoped-bundle/evidence.json')), schema);
+          validate(json.load(open('build/customer-object-evidence.json')), schema);
+          validate(json.load(open('build/customer-object-bundle/evidence.json')), schema);
           print('evidence schemas valid')"
       - name: Verify evidence bundle shape
         run: >-
@@ -49,6 +59,18 @@ jobs:
           required=['evidence.json','evidence.md','evidence.html','evidence.xlsx','manifest.json','details/missing.csv','details/unexpected.csv','details/field-mismatches.csv','details/aggregate-mismatches.csv','details/exceptions.csv'];
           missing=[name for name in required if not (root/name).exists()];
           assert not missing, missing; print('bundle shape valid')"
+      - name: Verify hierarchical discrepancies reach hand-off CSVs
+        run: >-
+          python -c "from pathlib import Path;
+          root=Path('build/customer-object-bundle/details');
+          missing=(root/'missing.csv').read_text();
+          unexpected=(root/'unexpected.csv').read_text();
+          fields=(root/'field-mismatches.csv').read_text();
+          assert 'missing_child_in_target' in missing;
+          assert 'unexpected_child_in_target' in unexpected;
+          assert 'changed_child_field' in fields;
+          assert 'customer/C1/addresses/A2' in fields;
+          print('hierarchical bundle categories valid')"
       - name: Smoke-test dataset inspection
         run: rac inspect examples/customer-migration/legacy.csv --json > build/legacy-profile.json
       - name: Smoke-test generated reconciliation spec
