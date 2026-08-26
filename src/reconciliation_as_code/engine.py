@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import platform
+import time
+import uuid
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
+from importlib.metadata import PackageNotFoundError, version as package_version
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +15,8 @@ from .errors import DataError
 from .io import load_table
 from .normalize import comparable_key, normalize_value
 from .spec import validate_spec
+
+EVIDENCE_SCHEMA_VERSION = "1.0"
 
 
 def _listify(value: str | list[str]) -> list[str]:
@@ -22,6 +29,18 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _sha256_object(value: Any) -> str:
+    payload = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _engine_version() -> str:
+    try:
+        return package_version("reconciliation-as-code")
+    except PackageNotFoundError:
+        return "0+unknown"
 
 
 def _index_rows(
@@ -104,6 +123,8 @@ def _field_equal(source_value: Any, target_value: Any, check: dict[str, Any]) ->
 def run_reconciliation(
     spec: dict[str, Any], *, base_dir: str | Path = ".", spec_path: str | Path | None = None
 ) -> dict[str, Any]:
+    started_at = datetime.now(timezone.utc)
+    timer_started = time.perf_counter()
     validate_spec(spec)
     base = Path(base_dir).resolve()
     source_path, source_rows = load_table(spec["source"], base)
@@ -215,8 +236,12 @@ def run_reconciliation(
             )
 
         elif check_type == "control_total":
-            source_total = sum((_decimal(row.get(check["source"]), check["source"]) for row in source_rows), Decimal("0"))
-            target_total = sum((_decimal(row.get(check["target"]), check["target"]) for row in target_rows), Decimal("0"))
+            source_total = sum(
+                (_decimal(row.get(check["source"]), check["source"]) for row in source_rows), Decimal("0")
+            )
+            target_total = sum(
+                (_decimal(row.get(check["target"]), check["target"]) for row in target_rows), Decimal("0")
+            )
             difference = abs(source_total - target_total)
             tolerance = Decimal(str(check.get("tolerance", 0)))
             checks.append(
@@ -271,12 +296,27 @@ def run_reconciliation(
                 "sha256": _sha256(resolved_spec_path),
             }
 
+    finished_at = datetime.now(timezone.utc)
+    duration_ms = round((time.perf_counter() - timer_started) * 1000, 3)
+    engine_version = _engine_version()
+
     return {
-        "schema_version": "1.0",
+        "schema_version": EVIDENCE_SCHEMA_VERSION,
+        "spec_version": int(spec.get("version", 1)),
+        "engine_version": engine_version,
+        "configuration_sha256": _sha256_object(spec),
+        "run": {
+            "id": str(uuid.uuid4()),
+            "started_at": started_at.isoformat(),
+            "finished_at": finished_at.isoformat(),
+            "duration_ms": duration_ms,
+            "python_version": platform.python_version(),
+            "platform": platform.platform(),
+        },
         "reconciliation": spec["reconciliation"]["name"],
         "description": spec["reconciliation"].get("description"),
         "status": "failed" if failed_errors else "passed",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": finished_at.isoformat(),
         "inputs": inputs,
         "summary": {
             "source_records": len(source_rows),
