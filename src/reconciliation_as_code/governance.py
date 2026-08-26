@@ -105,7 +105,12 @@ def _load_policy(spec: dict[str, Any], base_dir: Path) -> tuple[dict[str, Any] |
 
 
 def _entry_public(entry: dict[str, Any], status: str) -> dict[str, Any]:
-    result = {
+    expires = entry.get("expires")
+    if isinstance(expires, datetime):
+        expires = expires.date().isoformat()
+    elif isinstance(expires, date):
+        expires = expires.isoformat()
+    return {
         "index": entry["_index"],
         "check": entry["check"],
         entry["_reference_kind"]: entry[entry["_reference_kind"]],
@@ -114,10 +119,9 @@ def _entry_public(entry: dict[str, Any], status: str) -> dict[str, Any]:
         "reason": entry["reason"],
         "owner": entry.get("owner"),
         "reference": entry.get("reference"),
-        "expires": entry.get("expires"),
+        "expires": expires,
         "status": status,
     }
-    return result
 
 
 def _entry_matches(entry: dict[str, Any], check: dict[str, Any], detail: dict[str, Any], check_spec: dict[str, Any]) -> bool:
