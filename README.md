@@ -2,7 +2,7 @@
 
 **Version reconciliation controls instead of rebuilding them in spreadsheets for every migration, cutover, interface, and audit.**
 
-`reconciliation-as-code` is a small Python CLI and YAML specification for deterministic cross-system reconciliation. You define business keys, coverage expectations, field rules, mappings, tolerances, and control totals in Git. The runner produces machine-readable evidence and a reviewable report, and can fail CI when reconciliation controls fail.
+`reconciliation-as-code` is a Python CLI and YAML specification for deterministic cross-system reconciliation. You define business keys, scope, field rules, mappings, tolerances, grouped controls, and evidence policy in Git. The runner produces machine-readable proof and reviewer-friendly evidence, and can fail CI when reconciliation controls fail.
 
 ## Why
 
@@ -19,40 +19,55 @@ The control logic is valuable engineering knowledge. It should be versioned, rev
 
 - CSV reconciliation with no data-frame dependency;
 - optional Excel (`.xlsx` / `.xlsm`) input;
+- `rac inspect` dataset profiling and candidate-key quality;
+- `rac init` conservative first-spec generation;
 - single or composite business keys;
 - key normalization, including leading-zero handling;
 - duplicate-key detection;
+- endpoint filters, reusable named scopes and conditional checks;
 - matched / missing / unexpected record coverage;
-- field comparison with normalization;
-- mapping-aware field comparison;
-- numeric tolerances;
-- control totals;
-- row-count controls;
+- field comparison with normalization and explicit value mappings;
+- absolute, percentage and date tolerances;
+- explicit null semantics;
+- control totals and row-count controls;
+- grouped `count`, `distinct_count`, and `sum` reconciliation by business dimension;
 - warning vs error severity;
 - bounded evidence samples for large runs;
-- SHA-256 fingerprints for inputs and specification;
-- JSON evidence + Markdown report;
+- SHA-256 fingerprints for inputs, specification and canonical configuration;
+- versioned evidence schema and run provenance;
+- JSON + Markdown evidence;
+- offline HTML, XLSX and discrepancy CSV evidence bundles;
+- masking/hash-only/omit controls for configured sensitive evidence fields;
 - CI-friendly exit codes.
 
 ## Quick start
 
 ```bash
-python -m pip install -e .
+python -m pip install -e '.[excel]'
 
+rac inspect examples/customer-migration/legacy.csv
 rac validate examples/customer-migration/reconciliation.yaml
 rac run examples/customer-migration/reconciliation.yaml \
-  --evidence build/evidence.json \
-  --report build/evidence.md \
+  --bundle build/customer-evidence \
   --no-fail-on-diff
 ```
 
-For Excel files:
+To generate a conservative first YAML from two real exports:
 
 ```bash
-pip install -e '.[excel]'
+rac init source.csv target.csv -o reconciliation.yaml
 ```
 
-The included customer-migration example intentionally contains differences, so the generated evidence shows what a failed reconciliation looks like.
+If business keys differ, make the relationship explicit rather than relying on inference:
+
+```bash
+rac init legacy.csv s4.csv \
+  --source-key CUSTOMER_ID \
+  --target-key LEGACY_ID \
+  -o reconciliation.yaml
+```
+
+The included examples intentionally contain differences so generated evidence shows what failed controls look like.
 
 ## Reconciliation spec
 
@@ -72,6 +87,11 @@ target:
   key: LEGACY_ID
   key_normalize: [trim, strip_leading_zeros]
 
+scopes:
+  active:
+    source: {field: ACTIVE, op: eq, value: Y}
+    target: {field: ACTIVE, op: eq, value: Y}
+
 checks:
   - id: coverage
     type: record_coverage
@@ -85,16 +105,15 @@ checks:
       DE: DEU
       US: USA
 
-  - id: credit-limit
-    type: field_match
+  - id: credit-by-company
+    type: aggregate_match
+    operation: sum
     source: CREDIT_LIMIT
     target: CREDIT_LIMIT
-    numeric_tolerance: 0.01
-
-  - id: credit-total
-    type: control_total
-    source: CREDIT_LIMIT
-    target: CREDIT_LIMIT
+    scope: active
+    group_by:
+      source: COMPANY_CODE
+      target: COMPANY_CODE
     tolerance: 0.01
 ```
 
@@ -102,10 +121,11 @@ The YAML is the control definition. Source data and target data are runtime inpu
 
 ## Evidence model
 
-A run creates a compact result like:
+A run creates a versioned result with summary metrics, check results, bounded discrepancy samples, run metadata, input/spec hashes, and a canonical configuration fingerprint.
 
 ```json
 {
+  "schema_version": "1.0",
   "reconciliation": "Customer legacy to S/4HANA",
   "status": "failed",
   "summary": {
@@ -119,7 +139,7 @@ A run creates a compact result like:
 }
 ```
 
-Each failed check also carries metrics and a bounded sample of offending business keys/values. Input files and the YAML specification are fingerprinted with SHA-256 so evidence can be tied back to the exact reconciliation inputs.
+For cutover hand-off, `--bundle DIR` creates canonical JSON plus Markdown, offline HTML, filterable XLSX, discrepancy CSVs, and a manifest containing hashes for generated evidence files. Sensitive evidence fields can be masked, hashed, or omitted without changing deterministic reconciliation logic.
 
 ## CI / cutover gate
 
@@ -143,16 +163,17 @@ YAML control spec
               │
               ▼
         reconciliation engine
-        ├── key integrity
-        ├── coverage
-        ├── field rules
-        ├── mappings
-        └── totals / tolerances
+        ├── key integrity / coverage
+        ├── scopes / conditional rules
+        ├── field mappings / tolerances
+        └── grouped business controls
               │
               ▼
-        evidence.json + evidence.md
+       canonical evidence.json
               │
-              ├── human review / sign-off
+              ├── offline HTML / Markdown
+              ├── XLSX / discrepancy CSV
+              ├── manifest + file hashes
               └── CI / agent / automation
 ```
 
@@ -165,7 +186,7 @@ The core is deliberately vendor-neutral. SAP is an important use case, not a run
 - interface source vs receiver reconciliation;
 - cutover load verification;
 - master-data synchronization checks;
-- finance or inventory control totals;
+- finance or inventory control totals by organizational dimension;
 - pre/post transformation verification;
 - repeatable evidence attached to Jira, ServiceNow, audit, or sign-off workflows.
 
@@ -173,7 +194,10 @@ The core is deliberately vendor-neutral. SAP is an important use case, not a run
 
 - [Product strategy](PRODUCT_STRATEGY.md)
 - [Prioritized product backlog](BACKLOG.md)
+- [Five-minute real-data quickstart](docs/quickstart-real-data.md)
 - [Specification reference](docs/specification.md)
+- [Evidence bundles and privacy controls](docs/evidence-bundle.md)
+- [Compatibility policy](docs/compatibility.md)
 - [Architecture and extension model](docs/architecture.md)
 - [JSON Schema](schema/reconciliation.schema.json)
 - [Roadmap](ROADMAP.md)
@@ -191,6 +215,6 @@ The core is deliberately vendor-neutral. SAP is an important use case, not a run
 
 ## Status
 
-**Working MVP / alpha.** The CLI, reconciliation engine, evidence generation, example, tests, JSON Schema, and CI workflow are implemented. The product direction is now focused on migration-aware hierarchy, changed identities/cardinality, governed evidence, scale, SAP starter packs, and discoverability.
+**Working MVP / alpha.** The current focus is making the engine genuinely migration-aware: hierarchy, changed identities/cardinality, governed exceptions, scale, SAP starter packs, and discoverability.
 
 MIT licensed.
