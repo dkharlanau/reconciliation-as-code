@@ -1,0 +1,59 @@
+version: 1
+
+reconciliation:
+  name: SQLite source-to-target reconciliation
+  description: Compare two database queries without putting connection URLs or credentials in Git.
+
+source:
+  key: id
+  sql:
+    connection: legacy-sqlite
+    query: |
+      SELECT id, country, amount
+      FROM customers
+      WHERE active = :active
+      ORDER BY id
+    params:
+      active: Y
+    max_rows: 10000
+    timeout_seconds: 10
+    chunk_size: 1000
+
+target:
+  key: id
+  sql:
+    connection: target-sqlite
+    query: |
+      SELECT id, country, amount
+      FROM customers
+      WHERE active = :active
+      ORDER BY id
+    params:
+      active: Y
+    max_rows: 10000
+    timeout_seconds: 10
+    chunk_size: 1000
+
+checks:
+  - id: coverage
+    type: record_coverage
+
+  - id: country
+    type: field_match
+    source: country
+    target: country
+
+  - id: amount
+    type: field_match
+    source: amount
+    target: amount
+    numeric_tolerance: 0
+
+  - id: amount-total
+    type: control_total
+    source: amount
+    target: amount
+    tolerance: 0
+
+evidence:
+  detail_limit: 100
