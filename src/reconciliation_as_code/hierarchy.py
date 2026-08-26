@@ -84,6 +84,15 @@ def _detail(
     }
 
 
+def _event(check_id: str, severity: str, detail: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "parent_key": detail["parent_key"],
+        "check_id": check_id,
+        "severity": severity,
+        "path": detail.get("path"),
+    }
+
+
 def run_child_collections(
     spec: dict[str, Any],
     *,
@@ -91,17 +100,23 @@ def run_child_collections(
     detail_limit: int,
     compare_field: FieldComparator,
     make_result: ResultFactory,
-) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]], dict[str, Any]]:
+) -> tuple[
+    list[dict[str, Any]],
+    dict[str, dict[str, Any]],
+    dict[str, Any],
+    list[dict[str, Any]],
+]:
     object_spec = spec.get("object") or {}
     children = object_spec.get("children") or []
     if not children:
-        return [], {}, {}
+        return [], {}, {}, []
 
     base = Path(base_dir).resolve()
     object_name = object_spec.get("name", "object")
     checks: list[dict[str, Any]] = []
     inputs: dict[str, dict[str, Any]] = {}
     child_summary: dict[str, Any] = {}
+    failure_events: list[dict[str, Any]] = []
 
     for child in children:
         child_name = child["name"]
@@ -126,6 +141,8 @@ def run_child_collections(
             "sha256": _sha256(target_path),
         }
 
+        source_check_id = f"children.{child_name}.source-key-integrity"
+        target_check_id = f"children.{child_name}.target-key-integrity"
         source_duplicate_details = [
             _detail(object_name, child_name, identity, difference="duplicate_child_key")
             for identity in source_duplicates
@@ -134,9 +151,15 @@ def run_child_collections(
             _detail(object_name, child_name, identity, difference="duplicate_child_key")
             for identity in target_duplicates
         ]
+        failure_events.extend(
+            _event(source_check_id, "error", detail) for detail in source_duplicate_details
+        )
+        failure_events.extend(
+            _event(target_check_id, "error", detail) for detail in target_duplicate_details
+        )
         checks.append(
             make_result(
-                f"children.{child_name}.source-key-integrity",
+                source_check_id,
                 "child_key_integrity",
                 "error",
                 not source_duplicates,
@@ -152,7 +175,7 @@ def run_child_collections(
         )
         checks.append(
             make_result(
-                f"children.{child_name}.target-key-integrity",
+                target_check_id,
                 "child_key_integrity",
                 "error",
                 not target_duplicates,
@@ -174,20 +197,30 @@ def run_child_collections(
         unexpected = sorted(target_keys - source_keys)
         coverage = child.get("coverage") or {}
         allow_unexpected = bool(coverage.get("allow_unexpected", False))
-        coverage_details = [
+        coverage_severity = coverage.get("severity", "error")
+        coverage_check_id = f"children.{child_name}.coverage"
+        missing_details = [
             _detail(object_name, child_name, identity, difference="missing_child_in_target")
             for identity in missing
         ]
-        coverage_details.extend(
+        unexpected_details = [
             _detail(object_name, child_name, identity, difference="unexpected_child_in_target")
             for identity in unexpected
+        ]
+        coverage_details = missing_details + unexpected_details
+        failure_events.extend(
+            _event(coverage_check_id, coverage_severity, detail) for detail in missing_details
         )
+        if not allow_unexpected:
+            failure_events.extend(
+                _event(coverage_check_id, coverage_severity, detail) for detail in unexpected_details
+            )
         coverage_failures = len(missing) + (0 if allow_unexpected else len(unexpected))
         checks.append(
             make_result(
-                f"children.{child_name}.coverage",
+                coverage_check_id,
                 "child_record_coverage",
-                coverage.get("severity", "error"),
+                coverage_severity,
                 coverage_failures == 0,
                 {
                     "child": child_name,
@@ -203,6 +236,7 @@ def run_child_collections(
 
         for position, check in enumerate(child.get("checks", []), start=1):
             check_id = check.get("id", f"field-{position}")
+            full_check_id = f"children.{child_name}.{check_id}"
             mismatches: list[dict[str, Any]] = []
             for identity in matched:
                 source_row = source_index[identity]
@@ -227,12 +261,18 @@ def run_child_collections(
                         )
                     )
             max_mismatches = int(check.get("max_mismatches", 0))
+            severity = check.get("severity", "error")
+            failed = len(mismatches) > max_mismatches
+            if failed:
+                failure_events.extend(
+                    _event(full_check_id, severity, detail) for detail in mismatches
+                )
             checks.append(
                 make_result(
-                    f"children.{child_name}.{check_id}",
+                    full_check_id,
                     "child_field_match",
-                    check.get("severity", "error"),
-                    len(mismatches) <= max_mismatches,
+                    severity,
+                    not failed,
                     {
                         "child": child_name,
                         "compared": len(matched),
@@ -258,4 +298,4 @@ def run_child_collections(
             "target_identical_duplicates_ignored": target_identical,
         }
 
-    return checks, inputs, child_summary
+    return checks, inputs, child_summary, failure_events
