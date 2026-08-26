@@ -8,6 +8,7 @@ import yaml
 from .errors import SpecError
 from .filtering import validate_predicate
 from .materiality import validate_materiality_spec
+from .sql_adapter import validate_sql_config
 
 SUPPORTED_CHECKS = {"record_coverage", "field_match", "control_total", "row_count", "aggregate_match"}
 SUPPORTED_SEVERITIES = {"error", "warning"}
@@ -50,8 +51,19 @@ def _as_list(value: Any, field: str) -> list[str]:
 def _validate_endpoint(name: str, endpoint: Any) -> None:
     if not isinstance(endpoint, dict):
         raise SpecError(f"{name} must be an object.")
-    if not endpoint.get("file") or not isinstance(endpoint.get("file"), str):
+    has_file = endpoint.get("file") is not None
+    has_sql = endpoint.get("sql") is not None
+    if has_file == has_sql:
+        raise SpecError(f"{name} must define exactly one of file or sql.")
+    if has_file and (not isinstance(endpoint.get("file"), str) or not endpoint.get("file")):
         raise SpecError(f"{name}.file must be a non-empty string.")
+    if has_sql:
+        try:
+            validate_sql_config(endpoint["sql"], f"{name}.sql")
+        except Exception as exc:
+            if isinstance(exc, SpecError):
+                raise
+            raise SpecError(str(exc)) from exc
     _as_list(endpoint.get("key"), f"{name}.key")
 
     normalizers = endpoint.get("key_normalize", ["trim"])
