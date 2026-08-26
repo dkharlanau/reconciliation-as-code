@@ -1,0 +1,35 @@
+version: 1
+
+reconciliation:
+  name: Governed accepted exception example
+
+source:
+  file: source.csv
+  key: CUSTOMER_ID
+
+target:
+  file: target.csv
+  key: BP_ID
+
+checks:
+  - id: coverage
+    type: record_coverage
+
+  - id: country
+    type: field_match
+    source: COUNTRY
+    target: COUNTRY
+    normalize: [trim, uppercase]
+
+  - id: credit-limit
+    type: field_match
+    source: CREDIT_LIMIT
+    target: CREDIT_LIMIT
+    numeric_tolerance: 0
+
+exceptions:
+  file: exceptions.yaml
+  expiry_policy: error
+
+evidence:
+  detail_limit: 100
