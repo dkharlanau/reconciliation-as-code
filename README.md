@@ -171,6 +171,8 @@ The core is deliberately vendor-neutral. SAP is an important use case, not a run
 
 ## Documentation
 
+- [Product strategy](PRODUCT_STRATEGY.md)
+- [Prioritized product backlog](BACKLOG.md)
 - [Specification reference](docs/specification.md)
 - [Architecture and extension model](docs/architecture.md)
 - [JSON Schema](schema/reconciliation.schema.json)
@@ -189,6 +191,6 @@ The core is deliberately vendor-neutral. SAP is an important use case, not a run
 
 ## Status
 
-**Working MVP / alpha.** The CLI, reconciliation engine, evidence generation, example, tests, JSON Schema, and CI workflow are implemented. The next phase is scale, adapters, richer rule composition, and cross-project interoperability.
+**Working MVP / alpha.** The CLI, reconciliation engine, evidence generation, example, tests, JSON Schema, and CI workflow are implemented. The product direction is now focused on migration-aware hierarchy, changed identities/cardinality, governed evidence, scale, SAP starter packs, and discoverability.
 
 MIT licensed.
