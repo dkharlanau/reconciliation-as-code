@@ -1,0 +1,70 @@
+version: 1
+
+object:
+  type: SupplierBP
+
+reconciliation:
+  name: SAP S/4HANA Supplier to Business Partner migration reconciliation
+  description: Changed-ID Supplier to BP validation with bank details.
+
+source:
+  file: legacy_suppliers.csv
+  key: VENDOR_ID
+
+target:
+  file: business_partners.csv
+  key: BP_ID
+
+identity:
+  crosswalk:
+    file: id_crosswalk.csv
+    source_key: SOURCE_ID
+    target_key: TARGET_ID
+
+checks:
+  - id: root-coverage
+    type: record_coverage
+
+  - id: name
+    type: field_match
+    source: NAME
+    target: NAME
+
+  - id: country
+    type: field_match
+    source: COUNTRY
+    target: COUNTRY
+
+  - id: grouping
+    type: field_match
+    source: ACCOUNT_GROUP
+    target: BP_GROUP
+    map:
+      ZV01: BPV1
+      ZV02: BPV2
+
+  - id: payment-terms
+    type: field_match
+    source: PAYMENT_TERMS
+    target: PAYMENT_TERMS
+
+children:
+  bank_accounts:
+    source:
+      file: legacy_bank_accounts.csv
+      key: [VENDOR_ID, BANK_TYPE]
+      parent_key: VENDOR_ID
+    target:
+      file: bp_bank_accounts.csv
+      key: [BP_ID, BANK_TYPE]
+      parent_key: BP_ID
+    checks:
+      - id: coverage
+        type: record_coverage
+      - id: iban
+        type: field_match
+        source: IBAN
+        target: IBAN
+
+evidence:
+  detail_limit: 100
