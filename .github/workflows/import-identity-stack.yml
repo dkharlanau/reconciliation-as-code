@@ -1,0 +1,85 @@
+name: import-identity-stack
+
+on:
+  push:
+    branches: [agent/p0-identity]
+    paths:
+      - .github/workflows/import-identity-stack.yml
+
+permissions:
+  contents: write
+
+jobs:
+  import-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/p0-identity
+          fetch-depth: 0
+      - name: Fetch stacked implementation
+        run: git fetch origin agent/p0-identity-stack
+      - name: Verify stacked integration is complete
+        run: |
+          git show origin/agent/p0-identity-stack:src/reconciliation_as_code/engine.py | grep -q "build_identity_context"
+          git show origin/agent/p0-identity-stack:src/reconciliation_as_code/hierarchy.py | grep -q "source_parent_canonicalize"
+          git show origin/agent/p0-identity-stack:src/reconciliation_as_code/report.py | grep -q '"source_key", "target_key"'
+          git show origin/agent/p0-identity-stack:schema/reconciliation.schema.json | grep -q '"identity"'
+          git show origin/agent/p0-identity-stack:.github/workflows/ci.yml | grep -q "identity-crosswalk/one-to-one"
+          git show origin/agent/p0-identity-stack:src/reconciliation_as_code/identity.py >/dev/null
+          git show origin/agent/p0-identity-stack:src/reconciliation_as_code/identity_runtime.py >/dev/null
+      - name: Copy only issue 4 implementation onto clean main-based branch
+        run: |
+          git checkout origin/agent/p0-identity-stack -- \
+            src/reconciliation_as_code/identity.py \
+            src/reconciliation_as_code/identity_runtime.py \
+            src/reconciliation_as_code/engine.py \
+            src/reconciliation_as_code/hierarchy.py \
+            src/reconciliation_as_code/spec.py \
+            src/reconciliation_as_code/report.py \
+            schema/reconciliation.schema.json \
+            src/reconciliation_as_code/_schemas/reconciliation.schema.json \
+            .github/workflows/ci.yml \
+            README.md \
+            docs/identity-crosswalks.md \
+            examples/identity-crosswalk \
+            tests/test_identity.py
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev,excel]'
+      - name: Run complete unit suite
+        run: python -m unittest discover -s tests -v
+      - name: Validate all identity examples
+        run: |
+          rac validate examples/identity-crosswalk/one-to-one/reconciliation.yaml
+          rac validate examples/identity-crosswalk/one-to-many/reconciliation.yaml
+          rac validate examples/identity-crosswalk/many-to-one/reconciliation.yaml
+      - name: Execute all identity examples
+        run: |
+          rac run examples/identity-crosswalk/one-to-one/reconciliation.yaml --evidence build/one-to-one.json --report build/one-to-one.md --bundle build/one-to-one-bundle
+          rac run examples/identity-crosswalk/one-to-many/reconciliation.yaml --evidence build/one-to-many.json --report build/one-to-many.md
+          rac run examples/identity-crosswalk/many-to-one/reconciliation.yaml --evidence build/many-to-one.json --report build/many-to-one.md
+      - name: Validate identity evidence against published schema
+        run: |
+          rac schema evidence --output build/evidence.schema.json
+          python - <<'PY'
+          import json
+          from jsonschema import validate
+          schema = json.load(open('build/evidence.schema.json'))
+          for path in ['build/one-to-one.json','build/one-to-many.json','build/many-to-one.json']:
+              validate(json.load(open(path)), schema)
+          print('identity evidence schemas valid')
+          PY
+      - name: Commit clean verified implementation
+        run: |
+          rm .github/workflows/import-identity-stack.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add explicit identity crosswalk reconciliation"
+          git push origin HEAD:agent/p0-identity
