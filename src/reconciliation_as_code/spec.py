@@ -7,6 +7,7 @@ import yaml
 
 from .errors import SpecError
 from .filtering import validate_predicate
+from .materiality import validate_materiality_spec
 
 SUPPORTED_CHECKS = {"record_coverage", "field_match", "control_total", "row_count", "aggregate_match"}
 SUPPORTED_SEVERITIES = {"error", "warning"}
@@ -198,21 +199,31 @@ def validate_spec(spec: dict[str, Any]) -> None:
         if check_type == "aggregate_match":
             operation = check.get("operation", "count")
             if operation not in SUPPORTED_AGGREGATES:
-                raise SpecError(f"aggregate_match check {check_id!r}.operation must be one of {sorted(SUPPORTED_AGGREGATES)}.")
+                raise SpecError(
+                    f"aggregate_match check {check_id!r}.operation must be one of {sorted(SUPPORTED_AGGREGATES)}."
+                )
             group_by = check.get("group_by")
             if not isinstance(group_by, dict) or "source" not in group_by or "target" not in group_by:
-                raise SpecError(f"aggregate_match check {check_id!r} requires group_by.source and group_by.target.")
+                raise SpecError(
+                    f"aggregate_match check {check_id!r} requires group_by.source and group_by.target."
+                )
             source_groups = _as_list(group_by["source"], f"checks.{check_id}.group_by.source")
             target_groups = _as_list(group_by["target"], f"checks.{check_id}.group_by.target")
             if len(source_groups) != len(target_groups):
-                raise SpecError(f"aggregate_match check {check_id!r} source/target group_by field counts must match.")
+                raise SpecError(
+                    f"aggregate_match check {check_id!r} source/target group_by field counts must match."
+                )
             if operation in {"sum", "distinct_count"}:
                 if not isinstance(check.get("source"), str) or not isinstance(check.get("target"), str):
-                    raise SpecError(f"aggregate_match {operation} check {check_id!r} requires source and target fields.")
+                    raise SpecError(
+                        f"aggregate_match {operation} check {check_id!r} requires source and target fields."
+                    )
             for tolerance_name in ("tolerance", "percentage_tolerance"):
                 tolerance = check.get(tolerance_name, 0)
                 if not isinstance(tolerance, (int, float)) or tolerance < 0:
-                    raise SpecError(f"aggregate_match check {check_id!r}.{tolerance_name} must be >= 0.")
+                    raise SpecError(
+                        f"aggregate_match check {check_id!r}.{tolerance_name} must be >= 0."
+                    )
 
     evidence = spec.get("evidence", {})
     if evidence is not None:
@@ -235,3 +246,5 @@ def validate_spec(spec: dict[str, Any]) -> None:
         key_mode = evidence.get("key_mode", "plain")
         if key_mode not in SUPPORTED_KEY_MODES:
             raise SpecError(f"evidence.key_mode must be one of {sorted(SUPPORTED_KEY_MODES)}.")
+
+    validate_materiality_spec(spec)
