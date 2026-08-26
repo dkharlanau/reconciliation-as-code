@@ -8,6 +8,7 @@ from pathlib import Path
 
 from . import __version__
 from .errors import ReconciliationError
+from .pipeline_cli import add_pipeline_arguments, run_pipeline_command
 from .diff_cli import add_diff_arguments, run_diff_command
 from .identity import validate_identity_spec
 from .profiling import generate_spec, inspect_dataset, render_generated_spec
@@ -51,6 +52,9 @@ def _parser() -> argparse.ArgumentParser:
     init.add_argument("--delimiter", default=",", help="CSV delimiter.")
     init.add_argument("--interactive", action="store_true", help="Prompt to select candidate keys when needed.")
     init.add_argument("--force", action="store_true", help="Overwrite the output file if it exists.")
+    pipeline = subparsers.add_parser("pipeline", help="Run reconciliation across an ordered migration pipeline.")
+    add_pipeline_arguments(pipeline)
+
     diff = subparsers.add_parser("diff", help="Compare two retained reconciliation evidence runs.")
     add_diff_arguments(diff)
 
@@ -72,6 +76,9 @@ def _print_profile(profile: dict) -> None:
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
+        if args.command == "pipeline":
+            return run_pipeline_command(args)
+
         if args.command == "diff":
             return run_diff_command(args)
 
