@@ -1,0 +1,86 @@
+version: 1
+
+object:
+  type: CustomerBP
+
+reconciliation:
+  name: SAP S/4HANA Customer to Business Partner migration reconciliation
+  description: Changed-ID Customer to BP validation with addresses and sales areas.
+
+source:
+  file: legacy_customers.csv
+  key: CUSTOMER_ID
+
+target:
+  file: business_partners.csv
+  key: BP_ID
+
+identity:
+  crosswalk:
+    file: id_crosswalk.csv
+    source_key: SOURCE_ID
+    target_key: TARGET_ID
+
+checks:
+  - id: root-coverage
+    type: record_coverage
+
+  - id: name
+    type: field_match
+    source: NAME
+    target: NAME
+
+  - id: country
+    type: field_match
+    source: COUNTRY
+    target: COUNTRY
+
+  - id: grouping
+    type: field_match
+    source: ACCOUNT_GROUP
+    target: BP_GROUP
+    map:
+      Z001: BP01
+      Z002: BP02
+
+children:
+  addresses:
+    source:
+      file: legacy_addresses.csv
+      key: [CUSTOMER_ID, ADDRESS_TYPE]
+      parent_key: CUSTOMER_ID
+    target:
+      file: bp_addresses.csv
+      key: [BP_ID, ADDRESS_TYPE]
+      parent_key: BP_ID
+    checks:
+      - id: coverage
+        type: record_coverage
+      - id: city
+        type: field_match
+        source: CITY
+        target: CITY
+      - id: postal-code
+        type: field_match
+        source: POSTAL_CODE
+        target: POSTAL_CODE
+
+  sales_areas:
+    source:
+      file: legacy_sales_areas.csv
+      key: [CUSTOMER_ID, SALES_ORG, DIST_CHANNEL, DIVISION]
+      parent_key: CUSTOMER_ID
+    target:
+      file: bp_sales_areas.csv
+      key: [BP_ID, SALES_ORG, DIST_CHANNEL, DIVISION]
+      parent_key: BP_ID
+    checks:
+      - id: coverage
+        type: record_coverage
+      - id: currency
+        type: field_match
+        source: CURRENCY
+        target: CURRENCY
+
+evidence:
+  detail_limit: 100
