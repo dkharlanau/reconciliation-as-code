@@ -17,20 +17,33 @@
 - CLI exit codes for CI gates
 - example, tests, JSON Schema, GitHub Actions
 
-## 0.2 — Useful on real migration files
+## 0.2 — Migration controls beta — in progress
 
-- JSON / JSONL and Parquet adapters
+Completed:
+
+- stable specification and evidence compatibility contract
+- `rac inspect` and `rac init` guided onboarding
+- source/target scopes and deterministic predicates
+- conditional checks
 - aggregate-by-dimension controls
 - date and percentage tolerances
-- conditional checks (`when`)
-- ignore/filter rules
-- richer exception categories
-- evidence CSV export
 - configurable null semantics
-- performance tests for 100k–1M rows
+- audit-grade evidence bundle: JSON, Markdown, HTML, XLSX, CSV
+- PII masking/hash/omit controls
 
-## 0.3 — Enterprise integration
+Next:
 
+- hierarchical enterprise-object reconciliation
+- identity crosswalks and changed-ID handling
+- 1:N and N:1 merge/split reconciliation
+- versioned accepted-exception governance
+- materiality and critical-field policies
+
+## 0.3 — Scale and enterprise integration
+
+- DuckDB execution backend
+- benchmarks for 100k / 1M / 5M rows
+- JSON / JSONL and Parquet adapters
 - SQL adapter
 - plugin interface for source/target adapters
 - reusable rule packs
@@ -39,13 +52,42 @@
 - signed run manifest
 - baseline vs current reconciliation diff
 
-## 0.4 — Connected “as-code” toolkit
+## 0.4 — SAP migration wedge
+
+- Customer → Business Partner starter pack
+- Supplier → Business Partner starter pack
+- Material master starter pack
+- finance/inventory balance control pack
+- Mapping as Code interoperability
+- realistic multi-stage migration example
+
+## 0.5 — Distribution and discoverability
+
+- PyPI / pipx distribution
+- Docker image
+- reusable GitHub Action
+- search-oriented GitHub Pages documentation
+- repository trust/discoverability metadata
+- screenshots and runnable example gallery
+
+## 1.0 — Portable migration assurance layer
+
+- compatibility-stable spec/evidence model
+- enterprise hierarchy and identity transformations
+- scalable file/SQL execution
+- governed evidence and accepted exceptions
+- run-to-run rehearsal diff
+- SAP reference packs
+- documented extension/plugin model
+
+## Later — Connected “as-code” toolkit
 
 - consume Mapping as Code artifacts
 - link transformation steps to Transformation Graph
 - bind checks to Interface as Code contracts
 - publish reconciliation evidence to Project Evidence Graph
 - agent-readable run summaries and remediation context
+- MCP interface after deterministic core is mature
 
 ## Non-goals
 
@@ -53,3 +95,4 @@
 - replacing source-system extraction tooling
 - silently applying AI-generated reconciliation decisions
 - becoming an ETL/transformation engine
+- becoming a broad hosted data-observability platform
