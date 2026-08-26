@@ -10,7 +10,7 @@ from typing import Any
 import yaml
 
 from .errors import DataError
-from .hierarchy import run_reconciliation_with_hierarchy
+from .identity import run_reconciliation_with_identity
 
 
 def _canonical(value: Any) -> str:
@@ -107,16 +107,10 @@ def _entry_public(entry: dict[str, Any], status: str) -> dict[str, Any]:
     elif isinstance(expires, date):
         expires = expires.isoformat()
     return {
-        "index": entry["_index"],
-        "check": entry["check"],
+        "index": entry["_index"], "check": entry["check"],
         entry["_reference_kind"]: entry[entry["_reference_kind"]],
-        "field": entry.get("field"),
-        "reason_code": entry["reason_code"],
-        "reason": entry["reason"],
-        "owner": entry.get("owner"),
-        "reference": entry.get("reference"),
-        "expires": expires,
-        "status": status,
+        "field": entry.get("field"), "reason_code": entry["reason_code"], "reason": entry["reason"],
+        "owner": entry.get("owner"), "reference": entry.get("reference"), "expires": expires, "status": status,
     }
 
 
@@ -124,9 +118,7 @@ def _entry_matches(entry: dict[str, Any], check: dict[str, Any], detail: dict[st
     if entry["check"] != check["id"]:
         return False
     reference_kind = entry["_reference_kind"]
-    if reference_kind not in detail:
-        return False
-    if _canonical(entry[reference_kind]) != _canonical(detail[reference_kind]):
+    if reference_kind not in detail or _canonical(entry[reference_kind]) != _canonical(detail[reference_kind]):
         return False
     field = entry.get("field")
     if field is None:
@@ -232,7 +224,6 @@ def apply_exception_governance(result: dict[str, Any], spec: dict[str, Any], pol
         "expired": [_entry_public(entry, "expired") for entry in expired_entries],
     }
     if "hierarchy" in result:
-        # Recompute object roll-up after accepted child discrepancies changed check status.
         failed_check_ids = {item["id"] for item in failed_errors}
         remaining = []
         for obj in result["hierarchy"].get("failed_objects", []):
@@ -257,12 +248,12 @@ def run_reconciliation_with_governance(spec: dict[str, Any], *, base_dir: str | 
     base = Path(base_dir).resolve()
     policy, policy_path = _load_policy(spec, base)
     if policy is None or policy_path is None:
-        return run_reconciliation_with_hierarchy(spec, base_dir=base, spec_path=spec_path)
+        return run_reconciliation_with_identity(spec, base_dir=base, spec_path=spec_path)
 
     original_limit = int((spec.get("evidence") or {}).get("detail_limit", 100))
     execution_spec = copy.deepcopy(spec)
     execution_spec.setdefault("evidence", {})["detail_limit"] = 1_000_000_000
-    result = run_reconciliation_with_hierarchy(execution_spec, base_dir=base, spec_path=spec_path)
+    result = run_reconciliation_with_identity(execution_spec, base_dir=base, spec_path=spec_path)
     result["configuration_sha256"] = hashlib.sha256(_canonical(spec).encode("utf-8")).hexdigest()
     apply_exception_governance(result, spec, policy, policy_path)
     _truncate_details(result, original_limit)
