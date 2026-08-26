@@ -636,15 +636,15 @@ def run_reconciliation_duckdb(
                     source_agg = f"sum(coalesce({_try_decimal(source_raw_expr)}, 0))"
                     target_agg = f"sum(coalesce({_try_decimal(target_raw_expr)}, 0))"
                 source_grouped = (
-                    f"SELECT {source_group_select}, {source_agg} value FROM ({source_sql}) s GROUP BY {group_list}"
+                    f"SELECT {source_group_select}, {source_agg} AS __rac_value FROM ({source_sql}) s GROUP BY {group_list}"
                 )
                 target_grouped = (
-                    f"SELECT {target_group_select}, {target_agg} value FROM ({target_sql}) t GROUP BY {group_list}"
+                    f"SELECT {target_group_select}, {target_agg} AS __rac_value FROM ({target_sql}) t GROUP BY {group_list}"
                 )
                 group_join = " AND ".join(f"s.{col} = t.{col}" for col in group_cols)
                 coalesced_groups = ", ".join(f"coalesce(s.{col}, t.{col}) AS {col}" for col in group_cols)
                 combined = (
-                    f"SELECT {coalesced_groups}, coalesce(s.value, 0) source_value, coalesce(t.value, 0) target_value "
+                    f"SELECT {coalesced_groups}, coalesce(s.__rac_value, 0) source_value, coalesce(t.__rac_value, 0) target_value "
                     f"FROM ({source_grouped}) s FULL OUTER JOIN ({target_grouped}) t ON {group_join}"
                 )
                 difference, percentage = _absolute_percentage("source_value", "target_value")
