@@ -1,0 +1,10 @@
+version: 1
+exceptions:
+  - check: country
+    key: '1002'
+    field: COUNTRY
+    reason_code: approved-target-code
+    reason: Target intentionally stores ISO alpha-3 code for this migrated customer.
+    owner: migration-lead
+    reference: CUTOVER-EXAMPLE-001
+    expires: 2099-12-31
