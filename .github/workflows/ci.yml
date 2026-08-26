@@ -25,7 +25,9 @@ jobs:
       - run: rac validate examples/customer-migration/reconciliation.yaml
       - run: rac validate examples/scoped-controls/reconciliation.yaml
       - run: rac validate examples/accepted-exceptions/reconciliation.yaml
+      - run: rac validate examples/customer-bp-hierarchy/reconciliation.yaml
       - run: rac schema evidence --output build/evidence.schema.json
+      - run: rac schema spec --output build/spec.schema.json
       - name: Smoke-test evidence generation
         run: rac run examples/customer-migration/reconciliation.yaml --evidence build/evidence.json --report build/evidence.md --no-fail-on-diff
       - name: Smoke-test scoped aggregate evidence bundle
@@ -41,6 +43,20 @@ jobs:
           --evidence build/accepted-evidence.json
           --report build/accepted-evidence.md
           --bundle build/accepted-bundle
+      - name: Smoke-test hierarchical Customer/BP reconciliation
+        run: >-
+          rac run examples/customer-bp-hierarchy/reconciliation.yaml
+          --evidence build/hierarchy-evidence.json
+          --report build/hierarchy-evidence.md
+          --bundle build/hierarchy-bundle
+          --no-fail-on-diff
+      - name: Validate published spec examples
+        run: >-
+          python -c "import json,yaml; from jsonschema import validate;
+          schema=json.load(open('build/spec.schema.json'));
+          validate(yaml.safe_load(open('examples/customer-bp-hierarchy/reconciliation.yaml')), schema);
+          validate(yaml.safe_load(open('examples/accepted-exceptions/reconciliation.yaml')), schema);
+          print('spec schemas valid')"
       - name: Validate generated evidence schema
         run: >-
           python -c "import json; from jsonschema import validate;
@@ -50,6 +66,8 @@ jobs:
           validate(json.load(open('build/scoped-bundle/evidence.json')), schema);
           validate(json.load(open('build/accepted-evidence.json')), schema);
           validate(json.load(open('build/accepted-bundle/evidence.json')), schema);
+          validate(json.load(open('build/hierarchy-evidence.json')), schema);
+          validate(json.load(open('build/hierarchy-bundle/evidence.json')), schema);
           print('evidence schemas valid')"
       - name: Verify accepted-exception outcome
         run: >-
@@ -59,6 +77,17 @@ jobs:
           assert result['summary']['accepted_exceptions']==1, result['summary'];
           assert result['summary']['expired_exceptions']==0, result['summary'];
           print('accepted-exception governance valid')"
+      - name: Verify hierarchy evidence
+        run: >-
+          python -c "import json;
+          result=json.load(open('build/hierarchy-evidence.json'));
+          assert result['summary']['child_collections']==2, result['summary'];
+          assert result['summary']['objects_failed']>=1, result['summary'];
+          assert 'addresses' in result['hierarchy']['collections'];
+          assert 'sales_areas' in result['hierarchy']['collections'];
+          paths=[d.get('object_path') for c in result['checks'] for d in c.get('details',[]) if d.get('object_path')];
+          assert any(p.startswith('CustomerBP/100003/') for p in paths), paths;
+          print('hierarchy evidence valid')"
       - name: Verify evidence bundle shape
         run: >-
           python -c "from pathlib import Path;
