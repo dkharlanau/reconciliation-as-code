@@ -71,7 +71,7 @@
       "type": "object", "required": ["file", "key"],
       "properties": {
         "file": {"type": "string", "minLength": 1}, "key": {"$ref": "#/$defs/stringOrStringArray"},
-        "format": {"enum": ["csv", "xlsx", "xlsm"]},
+        "format": {"enum": ["csv", "xlsx", "xlsm", "parquet"]},
         "delimiter": {"type": "string", "minLength": 1, "maxLength": 1}, "sheet": {"type": "string"},
         "key_normalize": {"type": "array", "items": {"type": "string"}}, "filter": {"$ref": "#/$defs/predicate"}
       },

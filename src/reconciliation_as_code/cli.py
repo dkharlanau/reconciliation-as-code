@@ -24,6 +24,12 @@ def _parser() -> argparse.ArgumentParser:
     validate.add_argument("spec", help="Path to reconciliation YAML.")
     run = subparsers.add_parser("run", help="Run a reconciliation.")
     run.add_argument("spec", help="Path to reconciliation YAML.")
+    run.add_argument(
+        "--engine",
+        choices=["python", "duckdb"],
+        default="python",
+        help="Execution backend. DuckDB scales flat CSV/Parquet reconciliations without materializing all rows in Python.",
+    )
     run.add_argument("--evidence", default="build/evidence.json", help="Evidence JSON output path.")
     run.add_argument("--report", default="build/evidence.md", help="Markdown report output path.")
     run.add_argument("--bundle", help="Create a self-contained evidence directory with JSON, Markdown, HTML, XLSX, CSV details and manifest.")
@@ -102,7 +108,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "validate":
             print(f"valid: {spec_path} version={spec.get('version', 1)}")
             return 0
-        raw_result = run_reconciliation_with_governance(spec, base_dir=spec_path.parent, spec_path=spec_path)
+        raw_result = run_reconciliation_with_governance(
+            spec,
+            base_dir=spec_path.parent,
+            spec_path=spec_path,
+            backend=args.engine,
+        )
         result = prepare_evidence(raw_result, spec)
         write_json(result, args.evidence)
         write_markdown(result, args.report)
@@ -110,7 +121,11 @@ def main(argv: list[str] | None = None) -> int:
             manifest = write_bundle(result, args.bundle)
             print(f"bundle={Path(args.bundle).resolve()} files={len(manifest['files'])}")
         print(json.dumps(result["summary"], ensure_ascii=False))
-        print(f"status={result['status']} run_id={result['run']['id']} evidence={args.evidence} report={args.report}")
+        backend = result.get("run", {}).get("backend", args.engine)
+        print(
+            f"status={result['status']} run_id={result['run']['id']} backend={backend} "
+            f"evidence={args.evidence} report={args.report}"
+        )
         if result["status"] == "failed" and not args.no_fail_on_diff:
             return 1
         return 0

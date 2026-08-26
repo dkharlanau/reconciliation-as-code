@@ -136,8 +136,18 @@ child:addresses:city
 
 An exception can therefore target a specific child discrepancy without hiding other failures.
 
-## Current boundary
+## Changed root IDs
 
-Hierarchy support assumes source and target parent identities are directly comparable after configured key normalization. Migrations where root IDs change, merge or split are handled by the separate identity-crosswalk layer planned in issue #4.
+Hierarchy composes with the identity-crosswalk layer. If a legacy Customer `1001` becomes Business Partner `9001`, child parent identities are rewritten through the same explicit crosswalk before child reconciliation:
 
-This separation is deliberate: hierarchy defines object structure; identity transformation defines how source and target objects correspond.
+```text
+legacy customer 1001 / address BILL
+             ↓ identity crosswalk
+business partner 9001 / address BILL
+```
+
+The crosswalk may also represent supported `1:N` splits and `N:1` merges. Evidence retains the original source/target identities and the identity component used for comparison. See [Identity crosswalks](identity-crosswalks.md).
+
+## Execution backend
+
+Hierarchical reconciliation currently runs on the reference Python backend. The DuckDB backend intentionally rejects hierarchy specs until child and identity processing have a true query/stream-based implementation; this avoids overstating scale support.

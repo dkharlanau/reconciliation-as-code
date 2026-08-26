@@ -26,6 +26,22 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _run_backend(
+    spec: dict[str, Any], *, base_dir: Path, spec_path: str | Path | None, backend: str
+) -> dict[str, Any]:
+    if backend == "python":
+        return run_reconciliation_with_identity(spec, base_dir=base_dir, spec_path=spec_path)
+    if backend == "duckdb":
+        if spec.get("identity") or spec.get("children"):
+            raise DataError(
+                "DuckDB backend currently supports flat reconciliations only. Use --engine python for hierarchy/identity controls."
+            )
+        from .duckdb_engine import run_reconciliation_duckdb
+
+        return run_reconciliation_duckdb(spec, base_dir=base_dir, spec_path=spec_path)
+    raise DataError(f"Unsupported execution backend: {backend!r}.")
+
+
 def _parse_expiry(value: Any) -> date | None:
     if value in (None, ""):
         return None
@@ -296,23 +312,27 @@ def apply_exception_governance(
 def _truncate_details(result: dict[str, Any], limit: int) -> None:
     for check in result.get("checks", []):
         details = check.get("details", [])
-        check["details_truncated"] = len(details) > limit
+        check["details_truncated"] = len(details) > limit or bool(check.get("details_truncated"))
         check["details"] = details[:limit]
 
 
 def run_reconciliation_with_governance(
-    spec: dict[str, Any], *, base_dir: str | Path = ".", spec_path: str | Path | None = None
+    spec: dict[str, Any],
+    *,
+    base_dir: str | Path = ".",
+    spec_path: str | Path | None = None,
+    backend: str = "python",
 ) -> dict[str, Any]:
     base = Path(base_dir).resolve()
     policy, policy_path = _load_policy(spec, base)
     if policy is None or policy_path is None:
-        result = run_reconciliation_with_identity(spec, base_dir=base, spec_path=spec_path)
+        result = _run_backend(spec, base_dir=base, spec_path=spec_path, backend=backend)
         return apply_materiality(result, spec)
 
     original_limit = int((spec.get("evidence") or {}).get("detail_limit", 100))
     execution_spec = copy.deepcopy(spec)
     execution_spec.setdefault("evidence", {})["detail_limit"] = 1_000_000_000
-    result = run_reconciliation_with_identity(execution_spec, base_dir=base, spec_path=spec_path)
+    result = _run_backend(execution_spec, base_dir=base, spec_path=spec_path, backend=backend)
     result["configuration_sha256"] = hashlib.sha256(_canonical(spec).encode("utf-8")).hexdigest()
     apply_exception_governance(result, spec, policy, policy_path)
     apply_materiality(result, spec)
