@@ -24,7 +24,16 @@ classifiers = [
 [project.optional-dependencies]
 excel = ["openpyxl>=3.1"]
 duckdb = ["duckdb>=1.4"]
-dev = ["pytest>=8.0", "jsonschema>=4.23", "openpyxl>=3.1", "duckdb>=1.4"]
+sql = ["SQLAlchemy>=2.0"]
+postgres = ["SQLAlchemy>=2.0", "psycopg[binary]>=3.2"]
+dev = [
+  "pytest>=8.0",
+  "jsonschema>=4.23",
+  "openpyxl>=3.1",
+  "duckdb>=1.4",
+  "SQLAlchemy>=2.0",
+  "psycopg[binary]>=3.2",
+]
 
 [project.scripts]
 rac = "reconciliation_as_code.cli:main"
