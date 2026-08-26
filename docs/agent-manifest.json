@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "product": "reconciliation-as-code",
+  "purpose": "Evaluate migration and transformation outcomes with reusable reconciliation rulepacks, explicit policy, and verifiable evidence.",
+  "human_url": "https://dkharlanau.github.io/reconciliation-as-code/",
+  "repository": "https://github.com/dkharlanau/reconciliation-as-code",
+  "boundaries": ["not a data movement or ETL engine", "do not invent tolerances or waivers", "validate rulepacks before execution", "keep automation JSON on stdout and diagnostics on stderr"],
+  "capabilities": ["validate rulepacks", "inspect configured checks", "run count/aggregate/row/pair/multi-source/CDC reconciliation", "apply profiles and scoped suites", "evaluate policy and waivers", "build and verify evidence bundles", "evaluate evidence trust and trends"],
+  "entrypoints": [
+    {"type":"cli","command":"rac validate <rulepack.yaml>"},
+    {"type":"cli","command":"rac inspect <rulepack.yaml>"},
+    {"type":"cli","command":"rac run <rulepack.yaml>"}
+  ],
+  "safe_agent_loop": ["read README and rulepack", "validate", "inspect scopes/tolerances/waivers", "run requested suite", "verify evidence/trust when used for a gate", "return failures, policy context, and evidence references"],
+  "related": [
+    {"product":"mapping-as-code","relationship":"transformation intent under test"},
+    {"product":"cutover-graph","relationship":"readiness evidence"},
+    {"product":"project-evidence-graph","relationship":"project claim support"}
+  ]
+}
