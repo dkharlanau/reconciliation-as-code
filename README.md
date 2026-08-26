@@ -31,6 +31,7 @@ See [Product Strategy](PRODUCT_STRATEGY.md), [Product Backlog](BACKLOG.md), and 
 
 - CSV and optional Excel input on the reference Python backend;
 - CSV and Parquet input on the scalable DuckDB backend;
+- direct top-level SQLite and PostgreSQL query inputs through credential-free connection references;
 - `rac inspect` dataset profiling;
 - `rac init` conservative first-spec generation;
 - single or composite business keys;
@@ -57,10 +58,11 @@ See [Product Strategy](PRODUCT_STRATEGY.md), [Product Backlog](BACKLOG.md), and 
 ### Evidence and automation
 
 - versioned specification and canonical evidence schemas;
-- SHA-256 fingerprints for inputs, spec, crosswalks, and exception artifacts;
+- SHA-256 fingerprints for inputs, spec, crosswalks, exception artifacts, SQL queries and SQL extracts;
 - JSON + Markdown output;
 - offline HTML, filterable XLSX, and CSV discrepancy bundle;
 - value masking/hash/omit policies for sensitive evidence;
+- SQL evidence that records connection refs/dialect/query hashes but never copies the runtime DSN or password;
 - CI-friendly exit codes;
 - Python 3.10/3.12 CI coverage.
 
@@ -69,6 +71,7 @@ See [Product Strategy](PRODUCT_STRATEGY.md), [Product Backlog](BACKLOG.md), and 
 - selectable `--engine duckdb` execution path for flat CSV/Parquet reconciliations;
 - joins, filters, aggregates, and mismatch classification executed in DuckDB;
 - bounded evidence returned to Python instead of materializing the full dataset as dictionaries;
+- SQL query results streamed in chunks to bounded temporary extracts and optionally handed to DuckDB;
 - required CI benchmark using two generated 1,000,000-row migration extracts;
 - reproducible 100k / 1M / 5M benchmark tooling.
 
@@ -109,6 +112,40 @@ rac run reconciliation.yaml \
   --evidence build/evidence.json \
   --report build/evidence.md
 ```
+
+For SQLite/PostgreSQL source or target queries:
+
+```bash
+pip install -e '.[sql]'
+# PostgreSQL driver:
+pip install -e '.[postgres]'
+```
+
+A SQL endpoint stores only a connection reference:
+
+```yaml
+source:
+  key: CUSTOMER_ID
+  sql:
+    connection: legacy-erp
+    query: |
+      SELECT CUSTOMER_ID, COUNTRY, CREDIT_LIMIT
+      FROM migration_customers
+      WHERE LOAD_WAVE = :wave
+    params:
+      wave: W3
+    max_rows: 1000000
+    timeout_seconds: 60
+```
+
+The actual database URL is supplied at runtime:
+
+```bash
+export RAC_CONNECTION_LEGACY_ERP='postgresql+psycopg://user:password@db.internal:5432/migration'
+rac run reconciliation.yaml --engine duckdb
+```
+
+The connection URL is not stored in the YAML or evidence. See [SQL source and target adapters](docs/sql-adapters.md).
 
 The included examples intentionally contain both passing and failing controls so evidence behavior can be reviewed rather than only described.
 
@@ -211,6 +248,7 @@ A run creates canonical evidence containing:
 - check-level status and metrics;
 - bounded discrepancy samples;
 - identity/hierarchy provenance where applicable;
+- SQL query/extract provenance where applicable;
 - accepted-exception disposition;
 - materiality policy and raw-vs-final status;
 - privacy-safe values according to evidence policy.
@@ -242,23 +280,24 @@ The same flat reconciliation YAML can be executed through DuckDB:
 rac run reconciliation.yaml --engine duckdb
 ```
 
-This backend currently supports CSV/Parquet flat controls and is continuously tested against the Python reference semantics. A separate CI job generates and reconciles **1,000,000 source rows against 1,000,000 target rows**. A manual benchmark workflow defaults to 5,000,000 rows.
+This backend supports CSV/Parquet flat controls and can consume bounded SQL extracts produced by the SQL adapter. A separate CI job generates and reconciles **1,000,000 source rows against 1,000,000 target rows**. A manual benchmark workflow defaults to 5,000,000 rows.
 
 Hierarchy and identity crosswalks deliberately remain on `--engine python` until those stages have a true query/stream-based implementation. The CLI rejects them on DuckDB rather than making an unsupported scale claim.
 
-See [DuckDB execution backend](docs/duckdb-backend.md) and [scale benchmarks](benchmarks/README.md).
+See [DuckDB execution backend](docs/duckdb-backend.md), [SQL adapters](docs/sql-adapters.md), and [scale benchmarks](benchmarks/README.md).
 
 ## Design
 
 ```text
 versioned YAML control spec
           │
-          ├── source state
-          ├── target state
+          ├── source state (file or SQL query)
+          ├── target state (file or SQL query)
           ├── optional identity crosswalk
           ├── optional child collections
           └── optional exception/materiality policy
                   │
+        SQL inputs│stream to bounded extracts
                   ▼
           deterministic reconciliation
           ├── identity / key integrity
@@ -285,6 +324,8 @@ versioned YAML control spec
 - Customer → Business Partner migration validation;
 - Supplier/Vendor → Business Partner validation;
 - MDG → downstream replication controls;
+- database-to-database source/target reconciliation;
+- CSV extract → target database validation;
 - cutover load verification;
 - master-data synchronization checks;
 - finance or inventory grouped control totals;
@@ -296,6 +337,7 @@ versioned YAML control spec
 
 - [5-minute real-data quickstart](docs/quickstart-real-data.md)
 - [Specification reference](docs/specification.md)
+- [SQL source and target adapters](docs/sql-adapters.md)
 - [Hierarchical enterprise objects](docs/hierarchical-objects.md)
 - [Identity crosswalks](docs/identity-crosswalks.md)
 - [Governed accepted exceptions](docs/accepted-exceptions.md)
@@ -322,6 +364,6 @@ versioned YAML control spec
 
 ## Status
 
-**Migration-controls alpha.** The product now supports guided onboarding, enterprise-object hierarchy, changed identities/merge/split, scoped and grouped controls, governed exceptions, materiality, audit-grade evidence, and a scalable flat-data DuckDB execution path. The next P0 work is database adapters and deeper SAP S/4HANA starter packs.
+**Migration-controls alpha.** The product supports guided onboarding, enterprise-object hierarchy, changed identities/merge/split, scoped and grouped controls, governed exceptions, materiality, audit-grade evidence, a scalable flat-data DuckDB backend, and safe SQLite/PostgreSQL source/target adapters. The next P0 work is deeper SAP S/4HANA starter packs.
 
 MIT licensed.
