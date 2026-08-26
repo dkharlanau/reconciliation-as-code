@@ -67,10 +67,30 @@
       "properties": {"source": {"$ref": "#/$defs/predicate"}, "target": {"$ref": "#/$defs/predicate"}},
       "additionalProperties": false
     },
-    "endpoint": {
-      "type": "object", "required": ["file", "key"],
+    "sqlInput": {
+      "type": "object",
+      "required": ["connection", "query"],
       "properties": {
-        "file": {"type": "string", "minLength": 1}, "key": {"$ref": "#/$defs/stringOrStringArray"},
+        "connection": {"type": "string", "minLength": 1},
+        "query": {"type": "string", "minLength": 1},
+        "params": {"type": "object"},
+        "max_rows": {"type": "integer", "minimum": 1},
+        "timeout_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "chunk_size": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    },
+    "endpoint": {
+      "type": "object",
+      "required": ["key"],
+      "oneOf": [
+        {"required": ["file"], "not": {"required": ["sql"]}},
+        {"required": ["sql"], "not": {"required": ["file"]}}
+      ],
+      "properties": {
+        "file": {"type": "string", "minLength": 1},
+        "sql": {"$ref": "#/$defs/sqlInput"},
+        "key": {"$ref": "#/$defs/stringOrStringArray"},
         "format": {"enum": ["csv", "xlsx", "xlsm", "parquet"]},
         "delimiter": {"type": "string", "minLength": 1, "maxLength": 1}, "sheet": {"type": "string"},
         "key_normalize": {"type": "array", "items": {"type": "string"}}, "filter": {"$ref": "#/$defs/predicate"}
@@ -106,22 +126,18 @@
       "additionalProperties": true
     },
     "materialityPolicy": {
-      "type": "object",
-      "minProperties": 1,
+      "type": "object", "minProperties": 1,
       "properties": {
-        "severity": {"enum": ["error", "warning"]},
-        "critical": {"type": "boolean"},
-        "max_failures": {"type": "integer", "minimum": 0},
-        "max_failure_percentage": {"type": "number", "minimum": 0},
-        "max_absolute_difference": {"type": "number", "minimum": 0},
-        "max_percentage_difference": {"type": "number", "minimum": 0}
+        "severity": {"enum": ["error", "warning"]}, "critical": {"type": "boolean"},
+        "max_failures": {"type": "integer", "minimum": 0}, "max_failure_percentage": {"type": "number", "minimum": 0},
+        "max_absolute_difference": {"type": "number", "minimum": 0}, "max_percentage_difference": {"type": "number", "minimum": 0}
       },
       "additionalProperties": false
     },
     "childEndpoint": {
       "allOf": [
         {"$ref": "#/$defs/endpoint"},
-        {"type": "object", "required": ["parent_key"], "properties": {"parent_key": {"$ref": "#/$defs/stringOrStringArray"}, "parent_key_normalize": {"type": "array", "items": {"type": "string"}}}}
+        {"type": "object", "required": ["file", "parent_key"], "properties": {"parent_key": {"$ref": "#/$defs/stringOrStringArray"}, "parent_key_normalize": {"type": "array", "items": {"type": "string"}}}}
       ]
     },
     "childCollection": {
@@ -145,8 +161,7 @@
         "numeric_tolerance": {"type": "number", "minimum": 0}, "percentage_tolerance": {"type": "number", "minimum": 0},
         "date_tolerance_days": {"type": "number", "minimum": 0}, "null_semantics": {"enum": ["equal", "empty_is_null", "never_equal"]},
         "max_mismatches": {"type": "integer", "minimum": 0}, "allow_unexpected": {"type": "boolean"}, "tolerance": {"type": "number", "minimum": 0},
-        "operation": {"enum": ["count", "distinct_count", "sum"]},
-        "materiality": {"$ref": "#/$defs/materialityPolicy"},
+        "operation": {"enum": ["count", "distinct_count", "sum"]}, "materiality": {"$ref": "#/$defs/materialityPolicy"},
         "group_by": {
           "type": "object", "required": ["source", "target"],
           "properties": {"source": {"$ref": "#/$defs/stringOrStringArray"}, "target": {"$ref": "#/$defs/stringOrStringArray"}},
