@@ -31,3 +31,11 @@ jobs:
           python -c "import json; from jsonschema import validate;
           validate(json.load(open('build/evidence.json')),
           json.load(open('build/evidence.schema.json'))); print('evidence schema valid')"
+      - name: Smoke-test dataset inspection
+        run: rac inspect examples/customer-migration/legacy.csv --json > build/legacy-profile.json
+      - name: Smoke-test generated reconciliation spec
+        run: >-
+          rac init examples/customer-migration/legacy.csv examples/customer-migration/s4.csv
+          --source-key CUSTOMER_ID --target-key LEGACY_ID
+          --output build/generated-reconciliation.yaml
+      - run: rac validate build/generated-reconciliation.yaml
