@@ -1,0 +1,38 @@
+version: 1
+
+reconciliation:
+  name: Customer migration materiality example
+  description: Keep cosmetic differences visible while treating critical credit data as a hard migration gate.
+
+source:
+  file: source.csv
+  key: ID
+
+target:
+  file: target.csv
+  key: ID
+
+checks:
+  - id: coverage
+    type: record_coverage
+
+  - id: customer-name
+    type: field_match
+    source: NAME
+    target: NAME
+
+  - id: credit-limit
+    type: field_match
+    source: CREDIT_LIMIT
+    target: CREDIT_LIMIT
+
+materiality:
+  fields:
+    NAME:
+      severity: warning
+      max_failures: 1
+    CREDIT_LIMIT:
+      critical: true
+
+evidence:
+  detail_limit: 100
