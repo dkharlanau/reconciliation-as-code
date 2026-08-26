@@ -52,6 +52,12 @@ def _sanitize_predicate(predicate: Any, sensitive_fields: set[str], mode: str) -
     return copied
 
 
+def _hash_identity_fields(detail: dict[str, Any]) -> None:
+    for name in ("key", "parent_key", "child_key", "path"):
+        if name in detail and detail[name] is not None:
+            detail[name] = _hash_value(detail[name])
+
+
 def prepare_evidence(result: dict[str, Any], spec: dict[str, Any]) -> dict[str, Any]:
     """Return a presentation-safe copy of canonical evidence according to evidence privacy policy."""
     prepared = copy.deepcopy(result)
@@ -95,8 +101,8 @@ def prepare_evidence(result: dict[str, Any], spec: dict[str, Any]) -> dict[str, 
                 )
 
         for detail in check.get("details", []):
-            if key_mode == "hash" and "key" in detail:
-                detail["key"] = _hash_value(detail["key"])
+            if key_mode == "hash":
+                _hash_identity_fields(detail)
             if source_sensitive:
                 for name in ("source", "normalized_source", "source_value"):
                     if name in detail:
@@ -107,6 +113,16 @@ def prepare_evidence(result: dict[str, Any], spec: dict[str, Any]) -> dict[str, 
                         detail[name] = _protect_value(detail[name], sensitive_mode)
             if source_sensitive or target_sensitive:
                 detail["sensitive_values_redacted"] = True
+
+    object_payload = prepared.get("object")
+    if key_mode == "hash" and isinstance(object_payload, dict):
+        for detail in object_payload.get("details", []):
+            if "key" in detail:
+                detail["key"] = _hash_value(detail["key"])
+            if "path" in detail:
+                detail["path"] = _hash_value(detail["path"])
+            if "failure_paths" in detail:
+                detail["failure_paths"] = [_hash_value(path) for path in detail["failure_paths"]]
 
     return prepared
 
@@ -271,11 +287,11 @@ def _detail_categories(result: dict[str, Any]) -> dict[str, list[dict[str, Any]]
                 **{name: _flatten_value(value) for name, value in detail.items()},
             }
             difference = detail.get("difference")
-            if difference == "missing_in_target":
+            if difference in {"missing_in_target", "missing_child_in_target"}:
                 categories["missing"].append(row)
-            elif difference == "unexpected_in_target":
+            elif difference in {"unexpected_in_target", "unexpected_child_in_target"}:
                 categories["unexpected"].append(row)
-            elif check["type"] == "field_match":
+            elif check["type"] in {"field_match", "child_field_match"}:
                 categories["field_mismatches"].append(row)
             elif check["type"] == "aggregate_match":
                 categories["aggregate_mismatches"].append(row)
