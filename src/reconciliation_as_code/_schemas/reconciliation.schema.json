@@ -28,7 +28,16 @@
     },
     "evidence": {
       "type": "object",
-      "properties": {"detail_limit": {"type": "integer", "minimum": 0}},
+      "properties": {
+        "detail_limit": {"type": "integer", "minimum": 0},
+        "sensitive_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "sensitive_value_mode": {"enum": ["mask", "hash", "omit"]},
+        "key_mode": {"enum": ["plain", "hash"]}
+      },
       "additionalProperties": true
     }
   },

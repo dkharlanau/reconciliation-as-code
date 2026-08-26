@@ -27,11 +27,12 @@ jobs:
       - run: rac schema evidence --output build/evidence.schema.json
       - name: Smoke-test evidence generation
         run: rac run examples/customer-migration/reconciliation.yaml --evidence build/evidence.json --report build/evidence.md --no-fail-on-diff
-      - name: Smoke-test scoped aggregate evidence
+      - name: Smoke-test scoped aggregate evidence bundle
         run: >-
           rac run examples/scoped-controls/reconciliation.yaml
           --evidence build/scoped-evidence.json
           --report build/scoped-evidence.md
+          --bundle build/scoped-bundle
           --no-fail-on-diff
       - name: Validate generated evidence schema
         run: >-
@@ -39,7 +40,15 @@ jobs:
           schema=json.load(open('build/evidence.schema.json'));
           validate(json.load(open('build/evidence.json')), schema);
           validate(json.load(open('build/scoped-evidence.json')), schema);
+          validate(json.load(open('build/scoped-bundle/evidence.json')), schema);
           print('evidence schemas valid')"
+      - name: Verify evidence bundle shape
+        run: >-
+          python -c "from pathlib import Path;
+          root=Path('build/scoped-bundle');
+          required=['evidence.json','evidence.md','evidence.html','evidence.xlsx','manifest.json','details/missing.csv','details/unexpected.csv','details/field-mismatches.csv','details/aggregate-mismatches.csv','details/exceptions.csv'];
+          missing=[name for name in required if not (root/name).exists()];
+          assert not missing, missing; print('bundle shape valid')"
       - name: Smoke-test dataset inspection
         run: rac inspect examples/customer-migration/legacy.csv --json > build/legacy-profile.json
       - name: Smoke-test generated reconciliation spec

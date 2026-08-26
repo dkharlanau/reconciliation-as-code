@@ -19,6 +19,8 @@ SUPPORTED_NORMALIZERS = {
 }
 SUPPORTED_NULL_SEMANTICS = {"equal", "empty_is_null", "never_equal"}
 SUPPORTED_AGGREGATES = {"count", "distinct_count", "sum"}
+SUPPORTED_SENSITIVE_VALUE_MODES = {"mask", "hash", "omit"}
+SUPPORTED_KEY_MODES = {"plain", "hash"}
 
 
 def load_spec(path: str | Path) -> dict[str, Any]:
@@ -219,3 +221,17 @@ def validate_spec(spec: dict[str, Any]) -> None:
         detail_limit = evidence.get("detail_limit", 100)
         if not isinstance(detail_limit, int) or detail_limit < 0:
             raise SpecError("evidence.detail_limit must be an integer >= 0.")
+        sensitive_fields = evidence.get("sensitive_fields", [])
+        if not isinstance(sensitive_fields, list) or not all(
+            isinstance(field, str) and field for field in sensitive_fields
+        ):
+            raise SpecError("evidence.sensitive_fields must be a list of non-empty field names.")
+        sensitive_value_mode = evidence.get("sensitive_value_mode", "mask")
+        if sensitive_value_mode not in SUPPORTED_SENSITIVE_VALUE_MODES:
+            raise SpecError(
+                "evidence.sensitive_value_mode must be one of "
+                f"{sorted(SUPPORTED_SENSITIVE_VALUE_MODES)}."
+            )
+        key_mode = evidence.get("key_mode", "plain")
+        if key_mode not in SUPPORTED_KEY_MODES:
+            raise SpecError(f"evidence.key_mode must be one of {sorted(SUPPORTED_KEY_MODES)}.")
