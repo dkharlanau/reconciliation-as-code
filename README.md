@@ -2,7 +2,7 @@
 
 **Version reconciliation controls instead of rebuilding them in spreadsheets for every migration, cutover, interface, and audit.**
 
-`reconciliation-as-code` is a Python CLI and YAML specification for deterministic cross-system reconciliation. You define business keys, scope, field rules, mappings, tolerances, grouped controls, and evidence policy in Git. The runner produces machine-readable proof and reviewer-friendly evidence, and can fail CI when reconciliation controls fail.
+`reconciliation-as-code` is a Python CLI and YAML specification for deterministic cross-system reconciliation. You define business keys, scope, field rules, mappings, tolerances, grouped controls, object structure, and evidence policy in Git. The runner produces machine-readable proof and reviewer-friendly evidence, and can fail CI when reconciliation controls fail.
 
 ## Why
 
@@ -31,13 +31,15 @@ The control logic is valuable engineering knowledge. It should be versioned, rev
 - explicit null semantics;
 - control totals and row-count controls;
 - grouped `count`, `distinct_count`, and `sum` reconciliation by business dimension;
+- hierarchical enterprise objects with unordered child collections;
+- child coverage, field checks, duplicate policy and object-level status roll-up;
 - warning vs error severity;
-- bounded evidence samples for large runs;
-- SHA-256 fingerprints for inputs, specification and canonical configuration;
+- bounded evidence samples for large runs without changing object roll-up truth;
+- SHA-256 fingerprints for root/child inputs, specification and canonical configuration;
 - versioned evidence schema and run provenance;
 - JSON + Markdown evidence;
 - offline HTML, XLSX and discrepancy CSV evidence bundles;
-- masking/hash-only/omit controls for configured sensitive evidence fields;
+- masking/hash-only/omit controls for configured sensitive evidence fields and hierarchical identities;
 - CI-friendly exit codes.
 
 ## Quick start
@@ -49,6 +51,14 @@ rac inspect examples/customer-migration/legacy.csv
 rac validate examples/customer-migration/reconciliation.yaml
 rac run examples/customer-migration/reconciliation.yaml \
   --bundle build/customer-evidence \
+  --no-fail-on-diff
+```
+
+To see a root Customer/BP-style object with address and sales-area child collections:
+
+```bash
+rac run examples/customer-object/reconciliation.yaml \
+  --bundle build/customer-object-evidence \
   --no-fail-on-diff
 ```
 
@@ -119,6 +129,32 @@ checks:
 
 The YAML is the control definition. Source data and target data are runtime inputs. That separation makes the control reusable across DEV, QA, rehearsals, production cutover, and recurring operations.
 
+## Enterprise-object hierarchy
+
+The top-level source/target/checks remain the root business object. Optional `object.children` collections add repeating structures such as addresses, sales areas, roles, tax numbers, order items or schedules.
+
+```yaml
+object:
+  name: customer
+  children:
+    - name: addresses
+      source:
+        file: source-addresses.csv
+        parent_key: CUSTOMER_ID
+        key: ADDRESS_ID
+      target:
+        file: target-addresses.csv
+        parent_key: LEGACY_ID
+        key: ADDRESS_ID
+      checks:
+        - id: city
+          type: field_match
+          source: CITY
+          target: CITY
+```
+
+Child identity is `(parent business key, local child key)`, so row order does not matter. Evidence distinguishes missing, unexpected and changed child records and rolls attributable failures up to the root object.
+
 ## Evidence model
 
 A run creates a versioned result with summary metrics, check results, bounded discrepancy samples, run metadata, input/spec hashes, and a canonical configuration fingerprint.
@@ -158,15 +194,17 @@ Use `--no-fail-on-diff` when you only want to generate evidence during explorati
 ```text
 YAML control spec
       │
-      ├── source extract (CSV / Excel)
-      └── target extract (CSV / Excel)
+      ├── root source / target
+      ├── optional child collections
+      └── explicit scope / rules
               │
               ▼
         reconciliation engine
-        ├── key integrity / coverage
-        ├── scopes / conditional rules
+        ├── root key integrity / coverage
+        ├── child identity / coverage
         ├── field mappings / tolerances
-        └── grouped business controls
+        ├── grouped business controls
+        └── object-level status roll-up
               │
               ▼
        canonical evidence.json
@@ -182,6 +220,7 @@ The core is deliberately vendor-neutral. SAP is an important use case, not a run
 ## Use cases
 
 - SAP ECC / AFS → SAP S/4HANA migration reconciliation;
+- Customer / Supplier → Business Partner object validation;
 - MDG → downstream system replication controls;
 - interface source vs receiver reconciliation;
 - cutover load verification;
@@ -196,6 +235,7 @@ The core is deliberately vendor-neutral. SAP is an important use case, not a run
 - [Prioritized product backlog](BACKLOG.md)
 - [Five-minute real-data quickstart](docs/quickstart-real-data.md)
 - [Specification reference](docs/specification.md)
+- [Hierarchical enterprise objects](docs/hierarchical-objects.md)
 - [Evidence bundles and privacy controls](docs/evidence-bundle.md)
 - [Compatibility policy](docs/compatibility.md)
 - [Architecture and extension model](docs/architecture.md)
@@ -215,6 +255,6 @@ The core is deliberately vendor-neutral. SAP is an important use case, not a run
 
 ## Status
 
-**Working MVP / alpha.** The current focus is making the engine genuinely migration-aware: hierarchy, changed identities/cardinality, governed exceptions, scale, SAP starter packs, and discoverability.
+**Working MVP / alpha.** Flat and hierarchical deterministic reconciliation, guided setup, scoped/grouped controls, evidence contracts and reviewer bundles are implemented. The next migration-specific focus is changed identities/cardinality, governed exceptions, scale, SQL access and SAP starter packs.
 
 MIT licensed.
