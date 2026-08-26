@@ -1,0 +1,41 @@
+name: benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      rows:
+        description: Number of rows per source/target fixture
+        required: true
+        default: "5000000"
+
+permissions:
+  contents: read
+
+jobs:
+  duckdb-scale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e '.[dev]'
+      - name: Generate benchmark fixture
+        run: python benchmarks/generate_large_fixture.py --rows "${{ inputs.rows }}" --output build/benchmark
+      - name: Run DuckDB reconciliation benchmark
+        run: >-
+          rac run build/benchmark/reconciliation.yaml
+          --engine duckdb
+          --evidence build/benchmark/evidence.json
+          --report build/benchmark/evidence.md
+      - name: Print benchmark metrics
+        run: >-
+          python -c "import json;
+          r=json.load(open('build/benchmark/evidence.json'));
+          print('backend=',r['run'].get('backend'));
+          print('duckdb=',r['run'].get('duckdb_version'));
+          print('rows=',r['summary']['source_records']);
+          print('duration_ms=',r['run']['duration_ms']);
+          assert r['status']=='passed';
+          assert r['summary']['source_records']==int('${{ inputs.rows }}')"
