@@ -1,0 +1,44 @@
+version: 1
+
+reconciliation:
+  name: SAP migration identity crosswalk with changed IDs, split and merge
+
+source:
+  file: legacy_customers.csv
+  key: LEGACY_ID
+
+target:
+  file: business_partners.csv
+  key: BP_ID
+
+identity:
+  crosswalk:
+    file: crosswalk.csv
+    source_key: SOURCE_ID
+    target_key: TARGET_ID
+  aggregation:
+    source:
+      COUNTRY: require_equal
+      AMOUNT: sum
+    target:
+      COUNTRY: require_equal
+      AMOUNT: sum
+
+checks:
+  - id: coverage
+    type: record_coverage
+
+  - id: country
+    type: field_match
+    source: COUNTRY
+    target: COUNTRY
+    normalize: [trim, uppercase]
+
+  - id: amount
+    type: field_match
+    source: AMOUNT
+    target: AMOUNT
+    numeric_tolerance: 0
+
+evidence:
+  detail_limit: 100
