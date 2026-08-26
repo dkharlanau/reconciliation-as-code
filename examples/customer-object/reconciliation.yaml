@@ -1,0 +1,76 @@
+version: 1
+
+reconciliation:
+  name: Customer to Business Partner object reconciliation
+  description: Demonstrates a root customer plus unordered address and sales-area child collections.
+
+source:
+  file: source-customers.csv
+  key: CUSTOMER_ID
+
+target:
+  file: target-business-partners.csv
+  key: LEGACY_ID
+
+checks:
+  - id: root-coverage
+    type: record_coverage
+
+  - id: root-name
+    type: field_match
+    source: NAME
+    target: NAME
+
+  - id: root-country
+    type: field_match
+    source: COUNTRY
+    target: COUNTRY
+
+object:
+  name: customer
+  children:
+    - name: addresses
+      duplicate_policy: error
+      source:
+        file: source-addresses.csv
+        parent_key: CUSTOMER_ID
+        key: ADDRESS_ID
+      target:
+        file: target-addresses.csv
+        parent_key: LEGACY_ID
+        key: ADDRESS_ID
+      coverage:
+        allow_unexpected: false
+      checks:
+        - id: city
+          type: field_match
+          source: CITY
+          target: CITY
+        - id: country
+          type: field_match
+          source: COUNTRY
+          target: COUNTRY
+
+    - name: sales_areas
+      duplicate_policy: error
+      source:
+        file: source-sales-areas.csv
+        parent_key: CUSTOMER_ID
+        key: SALES_AREA
+      target:
+        file: target-sales-areas.csv
+        parent_key: LEGACY_ID
+        key: SALES_AREA
+      checks:
+        - id: currency
+          type: field_match
+          source: CURRENCY
+          target: CURRENCY
+        - id: credit_limit
+          type: field_match
+          source: CREDIT_LIMIT
+          target: CREDIT_LIMIT
+          numeric_tolerance: 0.01
+
+evidence:
+  detail_limit: 100
