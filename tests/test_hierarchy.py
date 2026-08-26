@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import csv
+import json
 import tempfile
 import unittest
 from pathlib import Path
 
 from reconciliation_as_code.engine import run_reconciliation
+from reconciliation_as_code.report import prepare_evidence
 from reconciliation_as_code.spec import load_spec, validate_spec
 
 
@@ -17,10 +19,13 @@ def write_csv(path: Path, rows: list[dict[str, str]]) -> None:
 
 
 class HierarchyTests(unittest.TestCase):
-    def test_customer_example_distinguishes_child_difference_categories_and_rolls_up(self) -> None:
+    def _example(self) -> tuple[Path, dict]:
         root = Path(__file__).resolve().parents[1]
         example = root / "examples" / "customer-object" / "reconciliation.yaml"
-        spec = load_spec(example)
+        return example, load_spec(example)
+
+    def test_customer_example_distinguishes_child_difference_categories_and_rolls_up(self) -> None:
+        example, spec = self._example()
         result = run_reconciliation(spec, base_dir=example.parent, spec_path=example)
 
         self.assertEqual("failed", result["status"])
@@ -53,6 +58,34 @@ class HierarchyTests(unittest.TestCase):
 
         self.assertIn("child.addresses.source", result["inputs"])
         self.assertIn("child.sales_areas.target", result["inputs"])
+
+    def test_object_rollup_is_not_reduced_by_detail_sampling(self) -> None:
+        example, spec = self._example()
+        spec["evidence"]["detail_limit"] = 1
+        result = run_reconciliation(spec, base_dir=example.parent, spec_path=example)
+
+        self.assertEqual(2, result["object"]["summary"]["objects_failed"])
+        self.assertEqual(1, len(result["object"]["details"]))
+        self.assertTrue(result["object"]["details_truncated"])
+        rollup = next(item for item in result["checks"] if item["id"] == "object-rollup")
+        self.assertEqual(2, rollup["metrics"]["objects_failed"])
+        self.assertTrue(rollup["details_truncated"])
+
+    def test_key_hashing_covers_child_and_object_paths(self) -> None:
+        example, spec = self._example()
+        spec["evidence"]["key_mode"] = "hash"
+        raw = run_reconciliation(spec, base_dir=example.parent, spec_path=example)
+        prepared = prepare_evidence(raw, spec)
+        serialized = json.dumps(prepared, ensure_ascii=False)
+
+        self.assertNotIn("customer/C1/addresses/A2", serialized)
+        self.assertNotIn('"parent_key": "C1"', serialized)
+        self.assertNotIn('"child_key": "A2"', serialized)
+        city = next(item for item in prepared["checks"] if item["id"] == "children.addresses.city")
+        self.assertTrue(city["details"][0]["parent_key"].startswith("sha256:"))
+        self.assertTrue(city["details"][0]["child_key"].startswith("sha256:"))
+        self.assertTrue(city["details"][0]["path"].startswith("sha256:"))
+        self.assertTrue(prepared["object"]["details"][0]["key"].startswith("sha256:"))
 
     def test_identical_duplicate_child_rows_can_be_explicitly_collapsed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
