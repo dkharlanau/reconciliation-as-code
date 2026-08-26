@@ -23,7 +23,7 @@ classifiers = [
 
 [project.optional-dependencies]
 excel = ["openpyxl>=3.1"]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "jsonschema>=4.23"]
 
 [project.scripts]
 rac = "reconciliation_as_code.cli:main"
@@ -35,3 +35,6 @@ Issues = "https://github.com/dkharlanau/reconciliation-as-code/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+reconciliation_as_code = ["_schemas/*.json"]
