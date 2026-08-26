@@ -267,9 +267,24 @@ def _identity_token(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)
 
 
+def _object_path(object_name: str, key: tuple[str, ...]) -> str:
+    return f"{object_name}/" + "+".join(key)
+
+
+def _failure_event(
+    parent_key: str | list[str], check_id: str, severity: str, path: str | None
+) -> dict[str, Any]:
+    return {
+        "parent_key": parent_key,
+        "check_id": check_id,
+        "severity": severity,
+        "path": path,
+    }
+
+
 def _object_rollup(
     object_name: str,
-    checks: list[dict[str, Any]],
+    failure_events: list[dict[str, Any]],
     root_keys: set[tuple[str, ...]],
     detail_limit: int,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -278,44 +293,38 @@ def _object_rollup(
         label = _key_label(root_key)
         records[_identity_token(label)] = {
             "key": label,
-            "path": f"{object_name}/" + "+".join(root_key),
+            "path": _object_path(object_name, root_key),
             "status": "passed",
             "failed_checks": [],
             "warning_checks": [],
             "failure_paths": [],
         }
 
-    for check in checks:
-        if check["status"] != "failed":
-            continue
-        severity = check["severity"]
-        for detail in check.get("details", []):
-            parent = detail.get("parent_key", detail.get("key"))
-            if parent is None:
-                continue
-            token = _identity_token(parent)
-            record = records.setdefault(
-                token,
-                {
-                    "key": parent,
-                    "path": f"{object_name}/" + ("+".join(parent) if isinstance(parent, list) else str(parent)),
-                    "status": "passed",
-                    "failed_checks": [],
-                    "warning_checks": [],
-                    "failure_paths": [],
-                },
-            )
-            if severity == "error":
-                record["status"] = "failed"
-                if check["id"] not in record["failed_checks"]:
-                    record["failed_checks"].append(check["id"])
-            elif record["status"] != "failed":
-                record["status"] = "warning"
-                if check["id"] not in record["warning_checks"]:
-                    record["warning_checks"].append(check["id"])
-            path = detail.get("path")
-            if path and path not in record["failure_paths"]:
-                record["failure_paths"].append(path)
+    for event in failure_events:
+        parent = event["parent_key"]
+        token = _identity_token(parent)
+        record = records.setdefault(
+            token,
+            {
+                "key": parent,
+                "path": f"{object_name}/" + ("+".join(parent) if isinstance(parent, list) else str(parent)),
+                "status": "passed",
+                "failed_checks": [],
+                "warning_checks": [],
+                "failure_paths": [],
+            },
+        )
+        if event["severity"] == "error":
+            record["status"] = "failed"
+            if event["check_id"] not in record["failed_checks"]:
+                record["failed_checks"].append(event["check_id"])
+        elif record["status"] != "failed":
+            record["status"] = "warning"
+            if event["check_id"] not in record["warning_checks"]:
+                record["warning_checks"].append(event["check_id"])
+        path = event.get("path")
+        if path and path not in record["failure_paths"]:
+            record["failure_paths"].append(path)
 
     ordered = sorted(records.values(), key=lambda item: _identity_token(item["key"]))
     failed = sum(1 for item in ordered if item["status"] == "failed")
@@ -370,8 +379,12 @@ def run_reconciliation(
     missing_keys = sorted(source_key_set - target_key_set)
     unexpected_keys = sorted(target_key_set - source_key_set)
     detail_limit = int((spec.get("evidence") or {}).get("detail_limit", 100))
+    object_name = (spec.get("object") or {}).get("name")
+    object_failure_events: list[dict[str, Any]] = []
 
     checks: list[dict[str, Any]] = []
+    source_integrity_details = [{"key": _key_label(key)} for key in source_duplicates]
+    target_integrity_details = [{"key": _key_label(key)} for key in target_duplicates]
     checks.append(
         _result(
             "source-key-integrity",
@@ -379,7 +392,7 @@ def run_reconciliation(
             "error",
             not source_duplicates,
             {"duplicate_keys": len(source_duplicates)},
-            [{"key": _key_label(key)} for key in source_duplicates],
+            source_integrity_details,
             detail_limit,
         )
     )
@@ -390,10 +403,19 @@ def run_reconciliation(
             "error",
             not target_duplicates,
             {"duplicate_keys": len(target_duplicates)},
-            [{"key": _key_label(key)} for key in target_duplicates],
+            target_integrity_details,
             detail_limit,
         )
     )
+    if object_name:
+        object_failure_events.extend(
+            _failure_event(_key_label(key), "source-key-integrity", "error", _object_path(object_name, key))
+            for key in source_duplicates
+        )
+        object_failure_events.extend(
+            _failure_event(_key_label(key), "target-key-integrity", "error", _object_path(object_name, key))
+            for key in target_duplicates
+        )
 
     for position, check in enumerate(spec["checks"], start=1):
         check_id = check.get("id", f"check-{position}")
@@ -418,6 +440,16 @@ def run_reconciliation(
                 {"key": _key_label(key), "difference": "unexpected_in_target"}
                 for key in scoped_unexpected
             )
+            if object_name and failures:
+                object_failure_events.extend(
+                    _failure_event(_key_label(key), check_id, severity, _object_path(object_name, key))
+                    for key in scoped_missing
+                )
+                if not allow_unexpected:
+                    object_failure_events.extend(
+                        _failure_event(_key_label(key), check_id, severity, _object_path(object_name, key))
+                        for key in scoped_unexpected
+                    )
             checks.append(
                 _result(
                     check_id,
@@ -462,12 +494,23 @@ def run_reconciliation(
                         }
                     )
             max_mismatches = int(check.get("max_mismatches", 0))
+            check_failed = len(mismatches) > max_mismatches
+            if object_name and check_failed:
+                object_failure_events.extend(
+                    _failure_event(
+                        detail["key"],
+                        check_id,
+                        severity,
+                        f"{object_name}/" + ("+".join(detail["key"]) if isinstance(detail["key"], list) else str(detail["key"])),
+                    )
+                    for detail in mismatches
+                )
             checks.append(
                 _result(
                     check_id,
                     check_type,
                     severity,
-                    len(mismatches) <= max_mismatches,
+                    not check_failed,
                     {
                         "compared": compared,
                         "skipped_by_scope_or_when": skipped,
@@ -588,7 +631,7 @@ def run_reconciliation(
                 )
             )
 
-    child_checks, child_inputs, child_summary = run_child_collections(
+    child_checks, child_inputs, child_summary, child_failure_events = run_child_collections(
         spec,
         base_dir=base,
         detail_limit=detail_limit,
@@ -596,11 +639,15 @@ def run_reconciliation(
         make_result=_result,
     )
     checks.extend(child_checks)
+    object_failure_events.extend(child_failure_events)
 
     object_payload: dict[str, Any] | None = None
-    if spec.get("object"):
+    if object_name:
         object_payload, rollup_check = _object_rollup(
-            spec["object"]["name"], checks, source_key_set | target_key_set, detail_limit
+            object_name,
+            object_failure_events,
+            source_key_set | target_key_set,
+            detail_limit,
         )
         checks.append(rollup_check)
 
