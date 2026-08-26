@@ -1,0 +1,73 @@
+version: 1
+
+reconciliation:
+  name: Scoped customer controls
+  description: Demonstrates endpoint scope, reusable business scope, conditional comparison and grouped controls.
+
+source:
+  file: source.csv
+  key: ID
+  filter:
+    field: ACTIVE
+    op: in
+    value: [Y, N]
+
+target:
+  file: target.csv
+  key: ID
+  filter:
+    field: ACTIVE
+    op: in
+    value: [Y, N]
+
+scopes:
+  active:
+    source:
+      field: ACTIVE
+      op: eq
+      value: Y
+    target:
+      field: ACTIVE
+      op: eq
+      value: Y
+
+checks:
+  - id: coverage
+    type: record_coverage
+
+  - id: active-customer-count-by-country
+    type: aggregate_match
+    operation: count
+    scope: active
+    group_by:
+      source: COUNTRY
+      target: COUNTRY
+    tolerance: 0
+
+  - id: active-credit-by-company
+    type: aggregate_match
+    operation: sum
+    source: CREDIT_LIMIT
+    target: CREDIT_LIMIT
+    scope: active
+    group_by:
+      source: COMPANY_CODE
+      target: COMPANY_CODE
+    tolerance: 0.01
+
+  - id: active-last-change-date
+    type: field_match
+    source: LAST_CHANGED
+    target: LAST_CHANGED
+    scope: active
+    when:
+      source:
+        field: LAST_CHANGED
+        op: not_null
+      target:
+        field: LAST_CHANGED
+        op: not_null
+    date_tolerance_days: 1
+
+evidence:
+  detail_limit: 100
