@@ -27,6 +27,7 @@ jobs:
       - run: rac validate examples/accepted-exceptions/reconciliation.yaml
       - run: rac validate examples/customer-bp-hierarchy/reconciliation.yaml
       - run: rac validate examples/identity-merge-split/reconciliation.yaml
+      - run: rac validate examples/materiality/reconciliation.yaml
       - run: rac schema evidence --output build/evidence.schema.json
       - run: rac schema spec --output build/spec.schema.json
       - name: Smoke-test evidence generation
@@ -57,6 +58,13 @@ jobs:
           --evidence build/identity-evidence.json
           --report build/identity-evidence.md
           --bundle build/identity-bundle
+      - name: Smoke-test business materiality reconciliation
+        run: >-
+          rac run examples/materiality/reconciliation.yaml
+          --evidence build/materiality-evidence.json
+          --report build/materiality-evidence.md
+          --bundle build/materiality-bundle
+          --no-fail-on-diff
       - name: Validate published spec examples
         run: >-
           python -c "import json,yaml; from jsonschema import validate;
@@ -64,6 +72,7 @@ jobs:
           validate(yaml.safe_load(open('examples/customer-bp-hierarchy/reconciliation.yaml')), schema);
           validate(yaml.safe_load(open('examples/accepted-exceptions/reconciliation.yaml')), schema);
           validate(yaml.safe_load(open('examples/identity-merge-split/reconciliation.yaml')), schema);
+          validate(yaml.safe_load(open('examples/materiality/reconciliation.yaml')), schema);
           print('spec schemas valid')"
       - name: Validate generated evidence schema
         run: >-
@@ -78,6 +87,8 @@ jobs:
           validate(json.load(open('build/hierarchy-bundle/evidence.json')), schema);
           validate(json.load(open('build/identity-evidence.json')), schema);
           validate(json.load(open('build/identity-bundle/evidence.json')), schema);
+          validate(json.load(open('build/materiality-evidence.json')), schema);
+          validate(json.load(open('build/materiality-bundle/evidence.json')), schema);
           print('evidence schemas valid')"
       - name: Verify accepted-exception outcome
         run: >-
@@ -110,6 +121,19 @@ jobs:
           assert result['summary']['identity_components']==3, result['summary'];
           assert 'identity_crosswalk' in result['inputs'];
           print('identity merge/split evidence valid')"
+      - name: Verify materiality evidence
+        run: >-
+          python -c "import json;
+          result=json.load(open('build/materiality-evidence.json'));
+          name=next(c for c in result['checks'] if c['id']=='customer-name');
+          credit=next(c for c in result['checks'] if c['id']=='credit-limit');
+          assert result['status']=='failed', result['status'];
+          assert name['status']=='passed' and name['metrics']['mismatches']==1, name;
+          assert name['metrics']['materiality']['raw_status']=='failed', name['metrics'];
+          assert credit['status']=='failed', credit;
+          assert result['summary']['critical_failures']==1, result['summary'];
+          assert len(name['details'])==1, name['details'];
+          print('materiality evidence valid')"
       - name: Verify evidence bundle shape
         run: >-
           python -c "from pathlib import Path;
