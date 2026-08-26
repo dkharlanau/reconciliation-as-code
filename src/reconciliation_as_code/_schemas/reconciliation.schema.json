@@ -17,6 +17,7 @@
     },
     "source": {"$ref": "#/$defs/endpoint"},
     "target": {"$ref": "#/$defs/endpoint"},
+    "object": {"$ref": "#/$defs/object"},
     "scopes": {
       "type": "object",
       "additionalProperties": {"$ref": "#/$defs/scope"}
@@ -82,6 +83,77 @@
         "sheet": {"type": "string"},
         "key_normalize": {"type": "array", "items": {"type": "string"}},
         "filter": {"$ref": "#/$defs/predicate"}
+      },
+      "additionalProperties": true
+    },
+    "childEndpoint": {
+      "type": "object",
+      "required": ["file", "parent_key", "key"],
+      "properties": {
+        "file": {"type": "string", "minLength": 1},
+        "parent_key": {"$ref": "#/$defs/stringOrStringArray"},
+        "key": {"$ref": "#/$defs/stringOrStringArray"},
+        "format": {"enum": ["csv", "xlsx", "xlsm"]},
+        "delimiter": {"type": "string", "minLength": 1, "maxLength": 1},
+        "sheet": {"type": "string"},
+        "parent_key_normalize": {"type": "array", "items": {"type": "string"}},
+        "key_normalize": {"type": "array", "items": {"type": "string"}},
+        "filter": {"$ref": "#/$defs/predicate"}
+      },
+      "additionalProperties": true
+    },
+    "fieldCheck": {
+      "type": "object",
+      "required": ["type", "source", "target"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "type": {"const": "field_match"},
+        "source": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1},
+        "severity": {"enum": ["error", "warning"]},
+        "normalize": {"type": "array", "items": {"type": "string"}},
+        "map": {"type": "object"},
+        "numeric_tolerance": {"type": "number", "minimum": 0},
+        "percentage_tolerance": {"type": "number", "minimum": 0},
+        "date_tolerance_days": {"type": "number", "minimum": 0},
+        "null_semantics": {"enum": ["equal", "empty_is_null", "never_equal"]},
+        "max_mismatches": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": true
+    },
+    "child": {
+      "type": "object",
+      "required": ["name", "source", "target"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "duplicate_policy": {"enum": ["error", "allow_identical"]},
+        "source": {"$ref": "#/$defs/childEndpoint"},
+        "target": {"$ref": "#/$defs/childEndpoint"},
+        "coverage": {
+          "type": "object",
+          "properties": {
+            "allow_unexpected": {"type": "boolean"},
+            "severity": {"enum": ["error", "warning"]}
+          },
+          "additionalProperties": false
+        },
+        "checks": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/fieldCheck"}
+        }
+      },
+      "additionalProperties": true
+    },
+    "object": {
+      "type": "object",
+      "required": ["name", "children"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "children": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/child"}
+        }
       },
       "additionalProperties": true
     },
