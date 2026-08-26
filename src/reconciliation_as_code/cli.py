@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .engine import run_reconciliation
 from .errors import ReconciliationError
+from .governance import run_reconciliation_with_governance
 from .profiling import generate_spec, inspect_dataset, render_generated_spec
 from .report import prepare_evidence, write_bundle, write_json, write_markdown
 from .schema import SCHEMA_FILES, schema_text
@@ -137,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"valid: {spec_path} version={spec.get('version', 1)}")
             return 0
 
-        raw_result = run_reconciliation(spec, base_dir=spec_path.parent, spec_path=spec_path)
+        raw_result = run_reconciliation_with_governance(spec, base_dir=spec_path.parent, spec_path=spec_path)
         result = prepare_evidence(raw_result, spec)
         write_json(result, args.evidence)
         write_markdown(result, args.report)
