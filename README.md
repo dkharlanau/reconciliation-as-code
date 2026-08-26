@@ -2,7 +2,7 @@
 
 **Version reconciliation controls instead of rebuilding them in spreadsheets for every migration, cutover, interface, and audit.**
 
-`reconciliation-as-code` is a Python CLI and YAML specification for deterministic cross-system reconciliation. You define business keys, scope, field rules, mappings, tolerances, grouped controls, and evidence policy in Git. The runner produces machine-readable proof and reviewer-friendly evidence, and can fail CI when reconciliation controls fail.
+`reconciliation-as-code` is a Python CLI and YAML specification for deterministic cross-system reconciliation. You define business keys, scope, field rules, mappings, tolerances, grouped controls and evidence policy in Git. The runner produces machine-readable evidence, human-reviewable reports, and CI-friendly pass/fail results.
 
 ## Why
 
@@ -15,59 +15,75 @@ Enterprise reconciliation is usually treated as disposable work:
 
 The control logic is valuable engineering knowledge. It should be versioned, reviewed, repeatable, and executable.
 
+## Product direction
+
+The product is evolving from flat source/target comparison into a **portable migration assurance layer**: prove that intended business state survived migration or replication even when scope, mappings, technical IDs and object structures change.
+
+Current focus:
+
+1. hierarchy-aware enterprise objects;
+2. changed-ID crosswalks and merge/split reconciliation;
+3. governed accepted exceptions;
+4. scalable execution;
+5. SAP S/4HANA migration starter packs.
+
+See [Product Strategy](PRODUCT_STRATEGY.md), [Product Backlog](BACKLOG.md), and [Roadmap](ROADMAP.md).
+
 ## What works today
 
 - CSV reconciliation with no data-frame dependency;
 - optional Excel (`.xlsx` / `.xlsm`) input;
-- `rac inspect` dataset profiling and candidate-key quality;
-- `rac init` conservative first-spec generation;
+- `rac inspect` dataset profiling;
+- `rac init` guided first-spec generation;
 - single or composite business keys;
 - key normalization, including leading-zero handling;
 - duplicate-key detection;
-- endpoint filters, reusable named scopes and conditional checks;
 - matched / missing / unexpected record coverage;
-- field comparison with normalization and explicit value mappings;
-- absolute, percentage and date tolerances;
-- explicit null semantics;
-- control totals and row-count controls;
-- grouped `count`, `distinct_count`, and `sum` reconciliation by business dimension;
+- source/target filtering and reusable scopes;
+- conditional checks;
+- field comparison with normalization;
+- mapping-aware field comparison;
+- numeric, percentage and date tolerances;
+- configurable null semantics;
+- global and aggregate-by-dimension control totals;
+- grouped row and distinct-count controls;
 - warning vs error severity;
 - bounded evidence samples for large runs;
-- SHA-256 fingerprints for inputs, specification and canonical configuration;
-- versioned evidence schema and run provenance;
+- SHA-256 fingerprints for inputs and specification;
+- versioned canonical evidence schema;
 - JSON + Markdown evidence;
-- offline HTML, XLSX and discrepancy CSV evidence bundles;
-- masking/hash-only/omit controls for configured sensitive evidence fields;
+- offline HTML, XLSX and CSV evidence bundle;
+- evidence masking/hash/omit policies for sensitive values;
 - CI-friendly exit codes.
 
 ## Quick start
 
 ```bash
-python -m pip install -e '.[excel]'
+python -m pip install -e .
 
 rac inspect examples/customer-migration/legacy.csv
+
 rac validate examples/customer-migration/reconciliation.yaml
 rac run examples/customer-migration/reconciliation.yaml \
-  --bundle build/customer-evidence \
+  --evidence build/evidence.json \
+  --report build/evidence.md \
+  --bundle build/evidence-bundle \
   --no-fail-on-diff
 ```
 
-To generate a conservative first YAML from two real exports:
+Generate a first spec from your own files:
 
 ```bash
-rac init source.csv target.csv -o reconciliation.yaml
+rac init legacy.csv target.csv -o reconciliation.yaml
 ```
 
-If business keys differ, make the relationship explicit rather than relying on inference:
+For Excel files:
 
 ```bash
-rac init legacy.csv s4.csv \
-  --source-key CUSTOMER_ID \
-  --target-key LEGACY_ID \
-  -o reconciliation.yaml
+pip install -e '.[excel]'
 ```
 
-The included examples intentionally contain differences so generated evidence shows what failed controls look like.
+The included examples intentionally contain differences so the generated evidence demonstrates failed controls and handoff output.
 
 ## Reconciliation spec
 
@@ -87,11 +103,6 @@ target:
   key: LEGACY_ID
   key_normalize: [trim, strip_leading_zeros]
 
-scopes:
-  active:
-    source: {field: ACTIVE, op: eq, value: Y}
-    target: {field: ACTIVE, op: eq, value: Y}
-
 checks:
   - id: coverage
     type: record_coverage
@@ -105,41 +116,34 @@ checks:
       DE: DEU
       US: USA
 
-  - id: credit-by-company
-    type: aggregate_match
-    operation: sum
+  - id: credit-limit
+    type: field_match
     source: CREDIT_LIMIT
     target: CREDIT_LIMIT
-    scope: active
-    group_by:
-      source: COMPANY_CODE
-      target: COMPANY_CODE
+    numeric_tolerance: 0.01
+
+  - id: credit-total
+    type: control_total
+    source: CREDIT_LIMIT
+    target: CREDIT_LIMIT
     tolerance: 0.01
 ```
 
-The YAML is the control definition. Source data and target data are runtime inputs. That separation makes the control reusable across DEV, QA, rehearsals, production cutover, and recurring operations.
+The YAML is the control definition. Source and target data are runtime inputs. That separation makes the same control reusable across DEV, QA, migration rehearsals, production cutover and recurring operations.
 
 ## Evidence model
 
-A run creates a versioned result with summary metrics, check results, bounded discrepancy samples, run metadata, input/spec hashes, and a canonical configuration fingerprint.
+A run creates a canonical result with:
 
-```json
-{
-  "schema_version": "1.0",
-  "reconciliation": "Customer legacy to S/4HANA",
-  "status": "failed",
-  "summary": {
-    "source_records": 3,
-    "target_records": 3,
-    "matched_records": 2,
-    "missing_in_target": 1,
-    "unexpected_in_target": 1,
-    "checks_failed": 3
-  }
-}
-```
+- spec/evidence version;
+- engine version and run ID;
+- input/spec fingerprints;
+- source/target counts;
+- check-level status and metrics;
+- bounded discrepancy samples;
+- privacy-safe values according to evidence policy.
 
-For cutover hand-off, `--bundle DIR` creates canonical JSON plus Markdown, offline HTML, filterable XLSX, discrepancy CSVs, and a manifest containing hashes for generated evidence files. Sensitive evidence fields can be masked, hashed, or omitted without changing deterministic reconciliation logic.
+Use `rac schema spec` and `rac schema evidence` to expose the published schemas.
 
 ## CI / cutover gate
 
@@ -149,62 +153,66 @@ By default, `rac run` returns:
 - `1` when reconciliation differences violate an error-severity control;
 - `2` when the specification or input is invalid.
 
-This makes a reconciliation spec usable as a migration gate, deployment control, scheduled integration check, or audit evidence step.
+This makes a reconciliation spec usable as a migration gate, deployment control, scheduled integration check or audit evidence step.
 
 Use `--no-fail-on-diff` when you only want to generate evidence during exploration or rehearsal.
 
 ## Design
 
 ```text
-YAML control spec
-      │
-      ├── source extract (CSV / Excel)
-      └── target extract (CSV / Excel)
-              │
-              ▼
-        reconciliation engine
-        ├── key integrity / coverage
-        ├── scopes / conditional rules
-        ├── field mappings / tolerances
-        └── grouped business controls
-              │
-              ▼
-       canonical evidence.json
-              │
-              ├── offline HTML / Markdown
-              ├── XLSX / discrepancy CSV
-              ├── manifest + file hashes
-              └── CI / agent / automation
+versioned YAML control spec
+          │
+          ├── source extract
+          └── target extract
+                  │
+                  ▼
+          reconciliation engine
+          ├── identity / key integrity
+          ├── scope / coverage
+          ├── field rules / mappings
+          ├── conditional checks
+          └── totals / grouped controls
+                  │
+                  ▼
+          canonical evidence JSON
+                  │
+          ┌───────┼────────┐
+          ▼       ▼        ▼
+        HTML     XLSX     CSV
+          │
+          ├── business review / sign-off
+          └── CI / agent / automation
 ```
 
-The core is deliberately vendor-neutral. SAP is an important use case, not a runtime dependency: extracts can come from SAP, Salesforce, a data lake, APIs, databases, middleware, or flat files.
+The core is deliberately vendor-neutral. SAP is an important first use case, not a runtime dependency: extracts can come from SAP, Salesforce, a data lake, APIs, databases, middleware or flat files.
 
 ## Use cases
 
 - SAP ECC / AFS → SAP S/4HANA migration reconciliation;
-- MDG → downstream system replication controls;
+- Customer → Business Partner migration validation;
+- MDG → downstream replication controls;
 - interface source vs receiver reconciliation;
 - cutover load verification;
 - master-data synchronization checks;
-- finance or inventory control totals by organizational dimension;
+- finance or inventory grouped control totals;
 - pre/post transformation verification;
-- repeatable evidence attached to Jira, ServiceNow, audit, or sign-off workflows.
+- repeatable evidence attached to Jira, ServiceNow, audit or sign-off workflows.
 
 ## Documentation
 
-- [Product strategy](PRODUCT_STRATEGY.md)
-- [Prioritized product backlog](BACKLOG.md)
-- [Five-minute real-data quickstart](docs/quickstart-real-data.md)
+- [5-minute real-data quickstart](docs/quickstart-real-data.md)
 - [Specification reference](docs/specification.md)
-- [Evidence bundles and privacy controls](docs/evidence-bundle.md)
 - [Compatibility policy](docs/compatibility.md)
+- [Evidence bundle and privacy controls](docs/evidence-bundle.md)
 - [Architecture and extension model](docs/architecture.md)
-- [JSON Schema](schema/reconciliation.schema.json)
+- [JSON Schemas](schema/)
+- [Product Strategy](PRODUCT_STRATEGY.md)
+- [Product Backlog](BACKLOG.md)
 - [Roadmap](ROADMAP.md)
 
 ## Relationship to the wider toolkit
 
-`reconciliation-as-code` answers **“did the intended state arrive correctly?”**. It is designed to compose with other versioned enterprise artifacts:
+`reconciliation-as-code` answers **“did the intended business state arrive correctly?”**. It is designed to compose with other versioned enterprise artifacts:
 
 - [Mapping as Code](https://github.com/dkharlanau/mapping-as-code) — how values/fields map;
 - [Transformation Graph](https://github.com/dkharlanau/transformation-graph) — how data changes across stages;
@@ -215,6 +223,6 @@ The core is deliberately vendor-neutral. SAP is an important use case, not a run
 
 ## Status
 
-**Working MVP / alpha.** The current focus is making the engine genuinely migration-aware: hierarchy, changed identities/cardinality, governed exceptions, scale, SAP starter packs, and discoverability.
+**Migration-controls alpha.** Slice A is implemented: stable contract, guided onboarding, scoped/grouped controls and audit-grade evidence. The next implementation loop is hierarchy + changed identities/cardinality + accepted-exception governance.
 
 MIT licensed.
