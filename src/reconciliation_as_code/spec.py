@@ -21,6 +21,7 @@ SUPPORTED_NULL_SEMANTICS = {"equal", "empty_is_null", "never_equal"}
 SUPPORTED_AGGREGATES = {"count", "distinct_count", "sum"}
 SUPPORTED_SENSITIVE_VALUE_MODES = {"mask", "hash", "omit"}
 SUPPORTED_KEY_MODES = {"plain", "hash"}
+SUPPORTED_CHILD_DUPLICATE_POLICIES = {"error", "allow_identical"}
 
 
 def load_spec(path: str | Path) -> dict[str, Any]:
@@ -46,19 +47,21 @@ def _as_list(value: Any, field: str) -> list[str]:
     raise SpecError(f"{field} must be a non-empty string or list of strings.")
 
 
+def _validate_normalizers(value: Any, field: str) -> None:
+    if not isinstance(value, list):
+        raise SpecError(f"{field} must be a list.")
+    unknown = set(value) - SUPPORTED_NORMALIZERS
+    if unknown:
+        raise SpecError(f"Unsupported {field} values: {sorted(unknown)}")
+
+
 def _validate_endpoint(name: str, endpoint: Any) -> None:
     if not isinstance(endpoint, dict):
         raise SpecError(f"{name} must be an object.")
     if not endpoint.get("file") or not isinstance(endpoint.get("file"), str):
         raise SpecError(f"{name}.file must be a non-empty string.")
     _as_list(endpoint.get("key"), f"{name}.key")
-
-    normalizers = endpoint.get("key_normalize", ["trim"])
-    if not isinstance(normalizers, list):
-        raise SpecError(f"{name}.key_normalize must be a list.")
-    unknown = set(normalizers) - SUPPORTED_NORMALIZERS
-    if unknown:
-        raise SpecError(f"Unsupported {name}.key_normalize values: {sorted(unknown)}")
+    _validate_normalizers(endpoint.get("key_normalize", ["trim"]), f"{name}.key_normalize")
     if endpoint.get("filter") is not None:
         validate_predicate(endpoint["filter"], f"{name}.filter")
 
@@ -101,6 +104,126 @@ def _validate_when(check: dict[str, Any], check_id: str) -> None:
         validate_predicate(when["target"], f"checks.{check_id}.when.target")
 
 
+def _validate_field_match(check: dict[str, Any], check_id: str, *, label: str = "field_match") -> None:
+    if not isinstance(check.get("source"), str) or not isinstance(check.get("target"), str):
+        raise SpecError(f"{label} check {check_id!r} requires source and target fields.")
+    _validate_normalizers(check.get("normalize", ["trim"]), f"{label} {check_id!r}.normalize")
+    mapping = check.get("map")
+    if mapping is not None and not isinstance(mapping, dict):
+        raise SpecError(f"{label} check {check_id!r}.map must be an object.")
+    numeric_tolerance = check.get("numeric_tolerance")
+    if numeric_tolerance is not None and (
+        not isinstance(numeric_tolerance, (int, float)) or numeric_tolerance < 0
+    ):
+        raise SpecError(f"{label} check {check_id!r}.numeric_tolerance must be >= 0.")
+    percentage_tolerance = check.get("percentage_tolerance")
+    if percentage_tolerance is not None and (
+        not isinstance(percentage_tolerance, (int, float)) or percentage_tolerance < 0
+    ):
+        raise SpecError(f"{label} check {check_id!r}.percentage_tolerance must be >= 0.")
+    date_tolerance_days = check.get("date_tolerance_days")
+    if date_tolerance_days is not None and (
+        not isinstance(date_tolerance_days, (int, float)) or date_tolerance_days < 0
+    ):
+        raise SpecError(f"{label} check {check_id!r}.date_tolerance_days must be >= 0.")
+    null_semantics = check.get("null_semantics", "equal")
+    if null_semantics not in SUPPORTED_NULL_SEMANTICS:
+        raise SpecError(
+            f"{label} check {check_id!r}.null_semantics must be one of {sorted(SUPPORTED_NULL_SEMANTICS)}."
+        )
+    max_mismatches = check.get("max_mismatches", 0)
+    if not isinstance(max_mismatches, int) or max_mismatches < 0:
+        raise SpecError(f"{label} check {check_id!r}.max_mismatches must be an integer >= 0.")
+
+
+def _validate_child_endpoint(name: str, endpoint: Any, root_key_count: int) -> tuple[list[str], list[str]]:
+    if not isinstance(endpoint, dict):
+        raise SpecError(f"{name} must be an object.")
+    if not endpoint.get("file") or not isinstance(endpoint.get("file"), str):
+        raise SpecError(f"{name}.file must be a non-empty string.")
+    parent_keys = _as_list(endpoint.get("parent_key"), f"{name}.parent_key")
+    local_keys = _as_list(endpoint.get("key"), f"{name}.key")
+    if len(parent_keys) != root_key_count:
+        raise SpecError(
+            f"{name}.parent_key must contain {root_key_count} field(s) to match the root identity."
+        )
+    _validate_normalizers(endpoint.get("parent_key_normalize", ["trim"]), f"{name}.parent_key_normalize")
+    _validate_normalizers(endpoint.get("key_normalize", ["trim"]), f"{name}.key_normalize")
+    if endpoint.get("filter") is not None:
+        validate_predicate(endpoint["filter"], f"{name}.filter")
+    return parent_keys, local_keys
+
+
+def _validate_object(spec: dict[str, Any], root_key_count: int) -> None:
+    object_spec = spec.get("object")
+    if object_spec is None:
+        return
+    if not isinstance(object_spec, dict):
+        raise SpecError("object must be an object.")
+    name = object_spec.get("name")
+    if not isinstance(name, str) or not name:
+        raise SpecError("object.name must be a non-empty string.")
+    children = object_spec.get("children")
+    if not isinstance(children, list) or not children:
+        raise SpecError("object.children must be a non-empty list when object is declared.")
+
+    child_names: set[str] = set()
+    for index, child in enumerate(children, start=1):
+        label = f"object.children[{index}]"
+        if not isinstance(child, dict):
+            raise SpecError(f"{label} must be an object.")
+        child_name = child.get("name")
+        if not isinstance(child_name, str) or not child_name:
+            raise SpecError(f"{label}.name must be a non-empty string.")
+        if child_name in child_names:
+            raise SpecError(f"Duplicate child collection name: {child_name}")
+        child_names.add(child_name)
+
+        _, source_local_keys = _validate_child_endpoint(
+            f"{label}.source", child.get("source"), root_key_count
+        )
+        _, target_local_keys = _validate_child_endpoint(
+            f"{label}.target", child.get("target"), root_key_count
+        )
+        if len(source_local_keys) != len(target_local_keys):
+            raise SpecError(
+                f"{label} source.key and target.key must contain the same number of local child fields."
+            )
+
+        duplicate_policy = child.get("duplicate_policy", "error")
+        if duplicate_policy not in SUPPORTED_CHILD_DUPLICATE_POLICIES:
+            raise SpecError(
+                f"{label}.duplicate_policy must be one of {sorted(SUPPORTED_CHILD_DUPLICATE_POLICIES)}."
+            )
+        coverage = child.get("coverage", {})
+        if not isinstance(coverage, dict):
+            raise SpecError(f"{label}.coverage must be an object.")
+        if not isinstance(coverage.get("allow_unexpected", False), bool):
+            raise SpecError(f"{label}.coverage.allow_unexpected must be boolean.")
+        if coverage.get("severity", "error") not in SUPPORTED_SEVERITIES:
+            raise SpecError(f"{label}.coverage.severity must be error or warning.")
+
+        child_checks = child.get("checks", [])
+        if not isinstance(child_checks, list):
+            raise SpecError(f"{label}.checks must be a list.")
+        child_check_ids: set[str] = set()
+        for check_index, check in enumerate(child_checks, start=1):
+            check_label = f"{label}.checks[{check_index}]"
+            if not isinstance(check, dict):
+                raise SpecError(f"{check_label} must be an object.")
+            if check.get("type") != "field_match":
+                raise SpecError(f"{check_label}.type must currently be field_match.")
+            check_id = check.get("id", f"field-{check_index}")
+            if not isinstance(check_id, str) or not check_id:
+                raise SpecError(f"{check_label}.id must be a non-empty string.")
+            if check_id in child_check_ids:
+                raise SpecError(f"Duplicate check id {check_id!r} in child {child_name!r}.")
+            child_check_ids.add(check_id)
+            if check.get("severity", "error") not in SUPPORTED_SEVERITIES:
+                raise SpecError(f"{check_label}.severity must be error or warning.")
+            _validate_field_match(check, check_id, label=f"child {child_name}")
+
+
 def validate_spec(spec: dict[str, Any]) -> None:
     version = spec.get("version", 1)
     if version != 1:
@@ -117,6 +240,7 @@ def validate_spec(spec: dict[str, Any]) -> None:
     target_keys = _as_list(spec["target"]["key"], "target.key")
     if len(source_keys) != len(target_keys):
         raise SpecError("source.key and target.key must contain the same number of fields.")
+    _validate_object(spec, len(source_keys))
 
     scope_names = _validate_scopes(spec)
     checks = spec.get("checks")
@@ -148,40 +272,7 @@ def validate_spec(spec: dict[str, Any]) -> None:
         _validate_when(check, check_id)
 
         if check_type == "field_match":
-            if not isinstance(check.get("source"), str) or not isinstance(check.get("target"), str):
-                raise SpecError(f"field_match check {check_id!r} requires source and target fields.")
-            normalizers = check.get("normalize", ["trim"])
-            if not isinstance(normalizers, list):
-                raise SpecError(f"field_match check {check_id!r}.normalize must be a list.")
-            unknown = set(normalizers) - SUPPORTED_NORMALIZERS
-            if unknown:
-                raise SpecError(f"Unsupported normalizers in {check_id!r}: {sorted(unknown)}")
-            mapping = check.get("map")
-            if mapping is not None and not isinstance(mapping, dict):
-                raise SpecError(f"field_match check {check_id!r}.map must be an object.")
-            numeric_tolerance = check.get("numeric_tolerance")
-            if numeric_tolerance is not None and (
-                not isinstance(numeric_tolerance, (int, float)) or numeric_tolerance < 0
-            ):
-                raise SpecError(f"field_match check {check_id!r}.numeric_tolerance must be >= 0.")
-            percentage_tolerance = check.get("percentage_tolerance")
-            if percentage_tolerance is not None and (
-                not isinstance(percentage_tolerance, (int, float)) or percentage_tolerance < 0
-            ):
-                raise SpecError(f"field_match check {check_id!r}.percentage_tolerance must be >= 0.")
-            date_tolerance_days = check.get("date_tolerance_days")
-            if date_tolerance_days is not None and (
-                not isinstance(date_tolerance_days, (int, float)) or date_tolerance_days < 0
-            ):
-                raise SpecError(f"field_match check {check_id!r}.date_tolerance_days must be >= 0.")
-            null_semantics = check.get("null_semantics", "equal")
-            if null_semantics not in SUPPORTED_NULL_SEMANTICS:
-                raise SpecError(
-                    f"field_match check {check_id!r}.null_semantics must be one of {sorted(SUPPORTED_NULL_SEMANTICS)}."
-                )
-            max_mismatches = check.get("max_mismatches", 0)
-            if not isinstance(max_mismatches, int) or max_mismatches < 0:
-                raise SpecError(f"field_match check {check_id!r}.max_mismatches must be an integer >= 0.")
+            _validate_field_match(check, check_id)
 
         if check_type == "control_total":
             if not isinstance(check.get("source"), str) or not isinstance(check.get("target"), str):
