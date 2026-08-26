@@ -26,6 +26,7 @@ jobs:
       - run: rac validate examples/scoped-controls/reconciliation.yaml
       - run: rac validate examples/accepted-exceptions/reconciliation.yaml
       - run: rac validate examples/customer-bp-hierarchy/reconciliation.yaml
+      - run: rac validate examples/identity-merge-split/reconciliation.yaml
       - run: rac schema evidence --output build/evidence.schema.json
       - run: rac schema spec --output build/spec.schema.json
       - name: Smoke-test evidence generation
@@ -50,12 +51,19 @@ jobs:
           --report build/hierarchy-evidence.md
           --bundle build/hierarchy-bundle
           --no-fail-on-diff
+      - name: Smoke-test changed-ID merge/split reconciliation
+        run: >-
+          rac run examples/identity-merge-split/reconciliation.yaml
+          --evidence build/identity-evidence.json
+          --report build/identity-evidence.md
+          --bundle build/identity-bundle
       - name: Validate published spec examples
         run: >-
           python -c "import json,yaml; from jsonschema import validate;
           schema=json.load(open('build/spec.schema.json'));
           validate(yaml.safe_load(open('examples/customer-bp-hierarchy/reconciliation.yaml')), schema);
           validate(yaml.safe_load(open('examples/accepted-exceptions/reconciliation.yaml')), schema);
+          validate(yaml.safe_load(open('examples/identity-merge-split/reconciliation.yaml')), schema);
           print('spec schemas valid')"
       - name: Validate generated evidence schema
         run: >-
@@ -68,6 +76,8 @@ jobs:
           validate(json.load(open('build/accepted-bundle/evidence.json')), schema);
           validate(json.load(open('build/hierarchy-evidence.json')), schema);
           validate(json.load(open('build/hierarchy-bundle/evidence.json')), schema);
+          validate(json.load(open('build/identity-evidence.json')), schema);
+          validate(json.load(open('build/identity-bundle/evidence.json')), schema);
           print('evidence schemas valid')"
       - name: Verify accepted-exception outcome
         run: >-
@@ -88,6 +98,18 @@ jobs:
           paths=[d.get('object_path') for c in result['checks'] for d in c.get('details',[]) if d.get('object_path')];
           assert any(p.startswith('CustomerBP/100003/') for p in paths), paths;
           print('hierarchy evidence valid')"
+      - name: Verify identity evidence
+        run: >-
+          python -c "import json;
+          result=json.load(open('build/identity-evidence.json'));
+          assert result['status']=='passed', result['status'];
+          modes=sorted(c['mode'] for c in result['identity']['components']);
+          assert modes==['1:1','1:N','N:1'], modes;
+          assert result['summary']['source_raw_records']==4, result['summary'];
+          assert result['summary']['target_raw_records']==4, result['summary'];
+          assert result['summary']['identity_components']==3, result['summary'];
+          assert 'identity_crosswalk' in result['inputs'];
+          print('identity merge/split evidence valid')"
       - name: Verify evidence bundle shape
         run: >-
           python -c "from pathlib import Path;
