@@ -24,6 +24,7 @@ jobs:
       - run: python -m unittest discover -s tests -v
       - run: rac validate examples/customer-migration/reconciliation.yaml
       - run: rac validate examples/scoped-controls/reconciliation.yaml
+      - run: rac validate examples/accepted-exceptions/reconciliation.yaml
       - run: rac schema evidence --output build/evidence.schema.json
       - name: Smoke-test evidence generation
         run: rac run examples/customer-migration/reconciliation.yaml --evidence build/evidence.json --report build/evidence.md --no-fail-on-diff
@@ -34,6 +35,12 @@ jobs:
           --report build/scoped-evidence.md
           --bundle build/scoped-bundle
           --no-fail-on-diff
+      - name: Smoke-test governed accepted exception
+        run: >-
+          rac run examples/accepted-exceptions/reconciliation.yaml
+          --evidence build/accepted-evidence.json
+          --report build/accepted-evidence.md
+          --bundle build/accepted-bundle
       - name: Validate generated evidence schema
         run: >-
           python -c "import json; from jsonschema import validate;
@@ -41,7 +48,17 @@ jobs:
           validate(json.load(open('build/evidence.json')), schema);
           validate(json.load(open('build/scoped-evidence.json')), schema);
           validate(json.load(open('build/scoped-bundle/evidence.json')), schema);
+          validate(json.load(open('build/accepted-evidence.json')), schema);
+          validate(json.load(open('build/accepted-bundle/evidence.json')), schema);
           print('evidence schemas valid')"
+      - name: Verify accepted-exception outcome
+        run: >-
+          python -c "import json;
+          result=json.load(open('build/accepted-evidence.json'));
+          assert result['status']=='passed', result['status'];
+          assert result['summary']['accepted_exceptions']==1, result['summary'];
+          assert result['summary']['expired_exceptions']==0, result['summary'];
+          print('accepted-exception governance valid')"
       - name: Verify evidence bundle shape
         run: >-
           python -c "from pathlib import Path;
