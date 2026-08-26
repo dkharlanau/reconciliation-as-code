@@ -14,6 +14,7 @@ from typing import Any
 
 from .errors import DataError
 from .filtering import filter_rows, predicate_matches
+from .hierarchy import run_child_collections
 from .io import load_table
 from .normalize import comparable_key, normalize_value
 from .spec import validate_spec
@@ -262,6 +263,88 @@ def _within_tolerance(
     return absolute_pass or percentage_pass, difference, percentage
 
 
+def _identity_token(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def _object_rollup(
+    object_name: str,
+    checks: list[dict[str, Any]],
+    root_keys: set[tuple[str, ...]],
+    detail_limit: int,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    records: dict[str, dict[str, Any]] = {}
+    for root_key in sorted(root_keys):
+        label = _key_label(root_key)
+        records[_identity_token(label)] = {
+            "key": label,
+            "path": f"{object_name}/" + "+".join(root_key),
+            "status": "passed",
+            "failed_checks": [],
+            "warning_checks": [],
+            "failure_paths": [],
+        }
+
+    for check in checks:
+        if check["status"] != "failed":
+            continue
+        severity = check["severity"]
+        for detail in check.get("details", []):
+            parent = detail.get("parent_key", detail.get("key"))
+            if parent is None:
+                continue
+            token = _identity_token(parent)
+            record = records.setdefault(
+                token,
+                {
+                    "key": parent,
+                    "path": f"{object_name}/" + ("+".join(parent) if isinstance(parent, list) else str(parent)),
+                    "status": "passed",
+                    "failed_checks": [],
+                    "warning_checks": [],
+                    "failure_paths": [],
+                },
+            )
+            if severity == "error":
+                record["status"] = "failed"
+                if check["id"] not in record["failed_checks"]:
+                    record["failed_checks"].append(check["id"])
+            elif record["status"] != "failed":
+                record["status"] = "warning"
+                if check["id"] not in record["warning_checks"]:
+                    record["warning_checks"].append(check["id"])
+            path = detail.get("path")
+            if path and path not in record["failure_paths"]:
+                record["failure_paths"].append(path)
+
+    ordered = sorted(records.values(), key=lambda item: _identity_token(item["key"]))
+    failed = sum(1 for item in ordered if item["status"] == "failed")
+    warnings = sum(1 for item in ordered if item["status"] == "warning")
+    details, truncated = _limited(ordered, detail_limit)
+    payload = {
+        "name": object_name,
+        "summary": {
+            "objects_total": len(ordered),
+            "objects_failed": failed,
+            "objects_warning": warnings,
+            "objects_passed": len(ordered) - failed - warnings,
+        },
+        "details": details,
+        "details_truncated": truncated,
+    }
+    failed_or_warning = [item for item in ordered if item["status"] != "passed"]
+    rollup_check = _result(
+        "object-rollup",
+        "object_rollup",
+        "error",
+        failed == 0,
+        payload["summary"],
+        failed_or_warning,
+        detail_limit,
+    )
+    return payload, rollup_check
+
+
 def run_reconciliation(
     spec: dict[str, Any], *, base_dir: str | Path = ".", spec_path: str | Path | None = None
 ) -> dict[str, Any]:
@@ -505,12 +588,29 @@ def run_reconciliation(
                 )
             )
 
+    child_checks, child_inputs, child_summary = run_child_collections(
+        spec,
+        base_dir=base,
+        detail_limit=detail_limit,
+        compare_field=_field_equal,
+        make_result=_result,
+    )
+    checks.extend(child_checks)
+
+    object_payload: dict[str, Any] | None = None
+    if spec.get("object"):
+        object_payload, rollup_check = _object_rollup(
+            spec["object"]["name"], checks, source_key_set | target_key_set, detail_limit
+        )
+        checks.append(rollup_check)
+
     failed_errors = [item for item in checks if item["severity"] == "error" and item["status"] == "failed"]
     failed_warnings = [item for item in checks if item["severity"] == "warning" and item["status"] == "failed"]
 
     inputs: dict[str, Any] = {
         "source": {"path": spec["source"]["file"], "sha256": _sha256(source_path)},
         "target": {"path": spec["target"]["file"], "sha256": _sha256(target_path)},
+        **child_inputs,
     }
     if spec_path:
         resolved_spec_path = Path(spec_path).resolve()
@@ -524,7 +624,20 @@ def run_reconciliation(
     duration_ms = round((time.perf_counter() - timer_started) * 1000, 3)
     engine_version = _engine_version()
 
-    return {
+    summary: dict[str, Any] = {
+        "source_records": len(source_rows),
+        "target_records": len(target_rows),
+        "matched_records": len(matched_keys),
+        "missing_in_target": len(missing_keys),
+        "unexpected_in_target": len(unexpected_keys),
+        "checks_total": len(checks),
+        "checks_failed": len(failed_errors),
+        "warnings_failed": len(failed_warnings),
+    }
+    if object_payload:
+        summary.update(object_payload["summary"])
+
+    result: dict[str, Any] = {
         "schema_version": EVIDENCE_SCHEMA_VERSION,
         "spec_version": int(spec.get("version", 1)),
         "engine_version": engine_version,
@@ -554,15 +667,10 @@ def run_reconciliation(
                 "filter": spec["target"].get("filter"),
             },
         },
-        "summary": {
-            "source_records": len(source_rows),
-            "target_records": len(target_rows),
-            "matched_records": len(matched_keys),
-            "missing_in_target": len(missing_keys),
-            "unexpected_in_target": len(unexpected_keys),
-            "checks_total": len(checks),
-            "checks_failed": len(failed_errors),
-            "warnings_failed": len(failed_warnings),
-        },
+        "summary": summary,
         "checks": checks,
     }
+    if object_payload:
+        result["object"] = object_payload
+        result["child_collections"] = child_summary
+    return result
