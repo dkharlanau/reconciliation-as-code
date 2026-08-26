@@ -9,8 +9,8 @@ from typing import Any
 
 import yaml
 
-from .engine import run_reconciliation
 from .errors import DataError
+from .hierarchy import run_reconciliation_with_hierarchy
 
 
 def _canonical(value: Any) -> str:
@@ -97,11 +97,7 @@ def _load_policy(spec: dict[str, Any], base_dir: Path) -> tuple[dict[str, Any] |
         normalized_item["_expires"] = _parse_expiry(item.get("expires"))
         normalized.append(normalized_item)
 
-    return {
-        "version": 1,
-        "expiry_policy": expiry_policy,
-        "entries": normalized,
-    }, path
+    return {"version": 1, "expiry_policy": expiry_policy, "entries": normalized}, path
 
 
 def _entry_public(entry: dict[str, Any], status: str) -> dict[str, Any]:
@@ -136,10 +132,8 @@ def _entry_matches(entry: dict[str, Any], check: dict[str, Any], detail: dict[st
     if field is None:
         return True
     candidates = {
-        check_spec.get("source"),
-        check_spec.get("target"),
-        check.get("metrics", {}).get("source_field"),
-        check.get("metrics", {}).get("target_field"),
+        check_spec.get("source"), check_spec.get("target"),
+        check.get("metrics", {}).get("source_field"), check.get("metrics", {}).get("target_field"),
     }
     return field in candidates
 
@@ -167,17 +161,15 @@ def _detail_counts_as_failure(check: dict[str, Any], detail: dict[str, Any]) -> 
     return check["type"] in {"field_match", "aggregate_match"}
 
 
-def apply_exception_governance(
-    result: dict[str, Any], spec: dict[str, Any], policy: dict[str, Any], policy_path: Path
-) -> dict[str, Any]:
+def apply_exception_governance(result: dict[str, Any], spec: dict[str, Any], policy: dict[str, Any], policy_path: Path) -> dict[str, Any]:
     now = datetime.now(timezone.utc).date()
     entries = policy["entries"]
     used: set[int] = set()
     expired: set[int] = set()
-    spec_checks = {
-        check.get("id", f"check-{index}"): check
-        for index, check in enumerate(spec.get("checks", []), start=1)
-    }
+    spec_checks = {check.get("id", f"check-{index}"): check for index, check in enumerate(spec.get("checks", []), start=1)}
+    for child_name, child in (spec.get("children") or {}).items():
+        for index, check in enumerate(child.get("checks", []), start=1):
+            spec_checks[f"child:{child_name}:{check.get('id', f'check-{index}')}"] = check
 
     for entry in entries:
         expiry = entry.get("_expires")
@@ -193,16 +185,9 @@ def apply_exception_governance(
         for detail in check.get("details", []):
             if not _detail_counts_as_failure(check, detail):
                 continue
-            matches = [
-                entry
-                for entry in entries
-                if entry["_index"] not in expired and _entry_matches(entry, check, detail, check_spec)
-            ]
+            matches = [entry for entry in entries if entry["_index"] not in expired and _entry_matches(entry, check, detail, check_spec)]
             if len(matches) > 1:
-                raise DataError(
-                    f"Ambiguous accepted exceptions for check {check['id']!r} and detail reference "
-                    f"{detail.get('key', detail.get('group'))!r}."
-                )
+                raise DataError(f"Ambiguous accepted exceptions for check {check['id']!r} and detail reference {detail.get('key', detail.get('group'))!r}.")
             if not matches:
                 detail.setdefault("disposition", "unaccepted")
                 continue
@@ -224,51 +209,40 @@ def apply_exception_governance(
 
     unused = [entry for entry in entries if entry["_index"] not in used and entry["_index"] not in expired]
     expired_entries = [entry for entry in entries if entry["_index"] in expired]
-    policy_check = {
-        "id": "accepted-exceptions-policy",
-        "type": "exception_governance",
-        "severity": policy["expiry_policy"],
+    result["checks"].append({
+        "id": "accepted-exceptions-policy", "type": "exception_governance", "severity": policy["expiry_policy"],
         "status": "failed" if expired_entries else "passed",
-        "metrics": {
-            "entries_total": len(entries),
-            "entries_used": len(used),
-            "entries_unused": len(unused),
-            "entries_expired": len(expired_entries),
-            "expiry_policy": policy["expiry_policy"],
-        },
-        "details": [
-            *[_entry_public(entry, "expired") for entry in expired_entries],
-            *[_entry_public(entry, "unused") for entry in unused],
-        ],
+        "metrics": {"entries_total": len(entries), "entries_used": len(used), "entries_unused": len(unused), "entries_expired": len(expired_entries), "expiry_policy": policy["expiry_policy"]},
+        "details": [*[_entry_public(entry, "expired") for entry in expired_entries], *[_entry_public(entry, "unused") for entry in unused]],
         "details_truncated": False,
-    }
-    result["checks"].append(policy_check)
+    })
 
-    failed_errors = [
-        item for item in result["checks"] if item["severity"] == "error" and item["status"] == "failed"
-    ]
-    failed_warnings = [
-        item for item in result["checks"] if item["severity"] == "warning" and item["status"] == "failed"
-    ]
+    failed_errors = [item for item in result["checks"] if item["severity"] == "error" and item["status"] == "failed"]
+    failed_warnings = [item for item in result["checks"] if item["severity"] == "warning" and item["status"] == "failed"]
     result["status"] = "failed" if failed_errors else "passed"
-    result["summary"]["checks_total"] = len(result["checks"])
-    result["summary"]["checks_failed"] = len(failed_errors)
-    result["summary"]["warnings_failed"] = len(failed_warnings)
-    result["summary"]["accepted_exceptions"] = len(used)
-    result["summary"]["unused_exceptions"] = len(unused)
-    result["summary"]["expired_exceptions"] = len(expired_entries)
-    result["inputs"]["exceptions"] = {
-        "path": str(policy_path.name),
-        "sha256": _sha256(policy_path),
-    }
+    result["summary"].update({
+        "checks_total": len(result["checks"]), "checks_failed": len(failed_errors), "warnings_failed": len(failed_warnings),
+        "accepted_exceptions": len(used), "unused_exceptions": len(unused), "expired_exceptions": len(expired_entries),
+    })
+    result["inputs"]["exceptions"] = {"path": str(policy_path.name), "sha256": _sha256(policy_path)}
     result["exception_governance"] = {
-        "version": policy["version"],
-        "expiry_policy": policy["expiry_policy"],
-        "entries_total": len(entries),
+        "version": policy["version"], "expiry_policy": policy["expiry_policy"], "entries_total": len(entries),
         "used": [_entry_public(entry, "used") for entry in entries if entry["_index"] in used],
         "unused": [_entry_public(entry, "unused") for entry in unused],
         "expired": [_entry_public(entry, "expired") for entry in expired_entries],
     }
+    if "hierarchy" in result:
+        # Recompute object roll-up after accepted child discrepancies changed check status.
+        failed_check_ids = {item["id"] for item in failed_errors}
+        remaining = []
+        for obj in result["hierarchy"].get("failed_objects", []):
+            obj["failed_checks"] = [check_id for check_id in obj.get("failed_checks", []) if check_id in failed_check_ids]
+            if obj["failed_checks"]:
+                remaining.append(obj)
+        result["hierarchy"]["failed_objects"] = remaining
+        result["summary"]["objects_failed"] = len(remaining)
+        evaluated = int(result["summary"].get("objects_evaluated", 0))
+        result["summary"]["objects_passed"] = max(evaluated - len(remaining), 0)
     return result
 
 
@@ -279,21 +253,17 @@ def _truncate_details(result: dict[str, Any], limit: int) -> None:
         check["details"] = details[:limit]
 
 
-def run_reconciliation_with_governance(
-    spec: dict[str, Any], *, base_dir: str | Path = ".", spec_path: str | Path | None = None
-) -> dict[str, Any]:
+def run_reconciliation_with_governance(spec: dict[str, Any], *, base_dir: str | Path = ".", spec_path: str | Path | None = None) -> dict[str, Any]:
     base = Path(base_dir).resolve()
     policy, policy_path = _load_policy(spec, base)
     if policy is None or policy_path is None:
-        return run_reconciliation(spec, base_dir=base, spec_path=spec_path)
+        return run_reconciliation_with_hierarchy(spec, base_dir=base, spec_path=spec_path)
 
     original_limit = int((spec.get("evidence") or {}).get("detail_limit", 100))
     execution_spec = copy.deepcopy(spec)
     execution_spec.setdefault("evidence", {})["detail_limit"] = 1_000_000_000
-    result = run_reconciliation(execution_spec, base_dir=base, spec_path=spec_path)
-    result["configuration_sha256"] = hashlib.sha256(
-        _canonical(spec).encode("utf-8")
-    ).hexdigest()
+    result = run_reconciliation_with_hierarchy(execution_spec, base_dir=base, spec_path=spec_path)
+    result["configuration_sha256"] = hashlib.sha256(_canonical(spec).encode("utf-8")).hexdigest()
     apply_exception_governance(result, spec, policy, policy_path)
     _truncate_details(result, original_limit)
     return result
