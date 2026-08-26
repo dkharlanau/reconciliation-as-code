@@ -10,18 +10,18 @@ This backlog is ordered by product value, not by implementation convenience. The
 
 ## P0 — Real migration value
 
-| Order | Issue | Outcome |
-|---:|---|---|
-| 1 | [#1 Stable reconciliation contract and evidence schema](https://github.com/dkharlanau/reconciliation-as-code/issues/1) | Make controls and evidence safely reusable/versionable. |
-| 2 | [#2 `rac init` guided spec generation](https://github.com/dkharlanau/reconciliation-as-code/issues/2) | Reduce first-use friction from YAML authoring to guided setup. |
-| 3 | [#3 Hierarchical enterprise-object reconciliation](https://github.com/dkharlanau/reconciliation-as-code/issues/3) | Reconcile real Customer/BP, Material, Supplier and document structures rather than flat rows only. |
-| 4 | [#4 Identity crosswalks and 1:N / N:1 reconciliation](https://github.com/dkharlanau/reconciliation-as-code/issues/4) | Handle changed IDs, merges and splits across migrations. |
-| 5 | [#5 Scope, conditional checks and aggregate-by-dimension controls](https://github.com/dkharlanau/reconciliation-as-code/issues/5) | Express migration scope and prove grouped business controls. |
-| 6 | [#6 Governed accepted-exception allowlists](https://github.com/dkharlanau/reconciliation-as-code/issues/6) | Allow known exceptions without hiding them or losing auditability. |
-| 7 | [#7 Audit-grade evidence bundle](https://github.com/dkharlanau/reconciliation-as-code/issues/7) | Produce JSON + HTML + XLSX + CSV evidence usable by engineers and business reviewers. |
-| 8 | [#8 DuckDB backend and 1M+ row benchmarks](https://github.com/dkharlanau/reconciliation-as-code/issues/8) | Prove the engine works on realistic migration volumes. |
-| 9 | [#9 SQL adapters](https://github.com/dkharlanau/reconciliation-as-code/issues/9) | Run against database sources/targets without embedding credentials in specs. |
-| 10 | [#10 SAP S/4HANA starter packs](https://github.com/dkharlanau/reconciliation-as-code/issues/10) | Turn product capabilities into immediately useful and searchable migration scenarios. |
+| Order | Issue | Outcome | Status |
+|---:|---|---|---|
+| 1 | [#1 Stable reconciliation contract and evidence schema](https://github.com/dkharlanau/reconciliation-as-code/issues/1) | Make controls and evidence safely reusable/versionable. | ✅ Done |
+| 2 | [#2 `rac init` guided spec generation](https://github.com/dkharlanau/reconciliation-as-code/issues/2) | Reduce first-use friction from YAML authoring to guided setup. | ✅ Done |
+| 3 | [#3 Hierarchical enterprise-object reconciliation](https://github.com/dkharlanau/reconciliation-as-code/issues/3) | Reconcile real Customer/BP, Material, Supplier and document structures rather than flat rows only. | ▶ Next |
+| 4 | [#4 Identity crosswalks and 1:N / N:1 reconciliation](https://github.com/dkharlanau/reconciliation-as-code/issues/4) | Handle changed IDs, merges and splits across migrations. | ▶ Next |
+| 5 | [#5 Scope, conditional checks and aggregate-by-dimension controls](https://github.com/dkharlanau/reconciliation-as-code/issues/5) | Express migration scope and prove grouped business controls. | ✅ Done |
+| 6 | [#6 Governed accepted-exception allowlists](https://github.com/dkharlanau/reconciliation-as-code/issues/6) | Allow known exceptions without hiding them or losing auditability. | Queued |
+| 7 | [#7 Audit-grade evidence bundle](https://github.com/dkharlanau/reconciliation-as-code/issues/7) | Produce JSON + HTML + XLSX + CSV evidence usable by engineers and business reviewers. | ✅ Done |
+| 8 | [#8 DuckDB backend and 1M+ row benchmarks](https://github.com/dkharlanau/reconciliation-as-code/issues/8) | Prove the engine works on realistic migration volumes. | Queued |
+| 9 | [#9 SQL adapters](https://github.com/dkharlanau/reconciliation-as-code/issues/9) | Run against database sources/targets without embedding credentials in specs. | Queued |
+| 10 | [#10 SAP S/4HANA starter packs](https://github.com/dkharlanau/reconciliation-as-code/issues/10) | Turn product capabilities into immediately useful and searchable migration scenarios. | Queued |
 
 ### P0 release gate
 
@@ -49,7 +49,7 @@ Do not call the product broadly production-ready until P0 is substantially compl
 
 ## Recommended delivery slices
 
-### Slice A — “Better than a one-off script”
+### Slice A — “Better than a one-off script” ✅
 
 Issues #1, #2, #5, #7.
 
