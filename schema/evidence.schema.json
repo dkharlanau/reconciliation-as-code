@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/dkharlanau/reconciliation-as-code/schema/evidence.schema.json",
+  "title": "Reconciliation as Code evidence",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "spec_version",
+    "engine_version",
+    "configuration_sha256",
+    "run",
+    "reconciliation",
+    "status",
+    "generated_at",
+    "inputs",
+    "summary",
+    "checks"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "spec_version": {"const": 1},
+    "engine_version": {"type": "string", "minLength": 1},
+    "configuration_sha256": {"$ref": "#/$defs/sha256"},
+    "run": {
+      "type": "object",
+      "required": ["id", "started_at", "finished_at", "duration_ms", "python_version", "platform"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "started_at": {"type": "string", "minLength": 1},
+        "finished_at": {"type": "string", "minLength": 1},
+        "duration_ms": {"type": "number", "minimum": 0},
+        "python_version": {"type": "string", "minLength": 1},
+        "platform": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "reconciliation": {"type": "string", "minLength": 1},
+    "description": {"type": ["string", "null"]},
+    "status": {"enum": ["passed", "failed"]},
+    "generated_at": {"type": "string", "minLength": 1},
+    "inputs": {
+      "type": "object",
+      "required": ["source", "target"],
+      "properties": {
+        "source": {"$ref": "#/$defs/input"},
+        "target": {"$ref": "#/$defs/input"},
+        "specification": {"$ref": "#/$defs/input"}
+      },
+      "additionalProperties": {"$ref": "#/$defs/input"}
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "source_records",
+        "target_records",
+        "matched_records",
+        "missing_in_target",
+        "unexpected_in_target",
+        "checks_total",
+        "checks_failed",
+        "warnings_failed"
+      ],
+      "properties": {
+        "source_records": {"type": "integer", "minimum": 0},
+        "target_records": {"type": "integer", "minimum": 0},
+        "matched_records": {"type": "integer", "minimum": 0},
+        "missing_in_target": {"type": "integer", "minimum": 0},
+        "unexpected_in_target": {"type": "integer", "minimum": 0},
+        "checks_total": {"type": "integer", "minimum": 0},
+        "checks_failed": {"type": "integer", "minimum": 0},
+        "warnings_failed": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": true
+    },
+    "checks": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/check"}
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "input": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": true
+    },
+    "check": {
+      "type": "object",
+      "required": ["id", "type", "severity", "status", "metrics", "details", "details_truncated"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "type": {"type": "string", "minLength": 1},
+        "severity": {"enum": ["error", "warning"]},
+        "status": {"enum": ["passed", "failed"]},
+        "metrics": {"type": "object"},
+        "details": {"type": "array", "items": {"type": "object"}},
+        "details_truncated": {"type": "boolean"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
