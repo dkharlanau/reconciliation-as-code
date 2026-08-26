@@ -23,6 +23,15 @@
       "properties": {"file": {"type": "string", "minLength": 1}, "expiry_policy": {"enum": ["error", "warning"]}},
       "additionalProperties": false
     },
+    "materiality": {
+      "type": "object",
+      "properties": {
+        "default": {"$ref": "#/$defs/materialityPolicy"},
+        "fields": {"type": "object", "additionalProperties": {"$ref": "#/$defs/materialityPolicy"}},
+        "checks": {"type": "object", "additionalProperties": {"$ref": "#/$defs/materialityPolicy"}}
+      },
+      "additionalProperties": false
+    },
     "evidence": {
       "type": "object",
       "properties": {
@@ -96,6 +105,19 @@
       },
       "additionalProperties": true
     },
+    "materialityPolicy": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "severity": {"enum": ["error", "warning"]},
+        "critical": {"type": "boolean"},
+        "max_failures": {"type": "integer", "minimum": 0},
+        "max_failure_percentage": {"type": "number", "minimum": 0},
+        "max_absolute_difference": {"type": "number", "minimum": 0},
+        "max_percentage_difference": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
     "childEndpoint": {
       "allOf": [
         {"$ref": "#/$defs/endpoint"},
@@ -124,6 +146,7 @@
         "date_tolerance_days": {"type": "number", "minimum": 0}, "null_semantics": {"enum": ["equal", "empty_is_null", "never_equal"]},
         "max_mismatches": {"type": "integer", "minimum": 0}, "allow_unexpected": {"type": "boolean"}, "tolerance": {"type": "number", "minimum": 0},
         "operation": {"enum": ["count", "distinct_count", "sum"]},
+        "materiality": {"$ref": "#/$defs/materialityPolicy"},
         "group_by": {
           "type": "object", "required": ["source", "target"],
           "properties": {"source": {"$ref": "#/$defs/stringOrStringArray"}, "target": {"$ref": "#/$defs/stringOrStringArray"}},
