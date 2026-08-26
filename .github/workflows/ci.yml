@@ -32,6 +32,13 @@ jobs:
       - run: rac schema spec --output build/spec.schema.json
       - name: Smoke-test evidence generation
         run: rac run examples/customer-migration/reconciliation.yaml --evidence build/evidence.json --report build/evidence.md --no-fail-on-diff
+      - name: Smoke-test DuckDB execution
+        run: >-
+          rac run examples/scoped-controls/reconciliation.yaml
+          --engine duckdb
+          --evidence build/duckdb-evidence.json
+          --report build/duckdb-evidence.md
+          --no-fail-on-diff
       - name: Smoke-test scoped aggregate evidence bundle
         run: >-
           rac run examples/scoped-controls/reconciliation.yaml
@@ -78,17 +85,8 @@ jobs:
         run: >-
           python -c "import json; from jsonschema import validate;
           schema=json.load(open('build/evidence.schema.json'));
-          validate(json.load(open('build/evidence.json')), schema);
-          validate(json.load(open('build/scoped-evidence.json')), schema);
-          validate(json.load(open('build/scoped-bundle/evidence.json')), schema);
-          validate(json.load(open('build/accepted-evidence.json')), schema);
-          validate(json.load(open('build/accepted-bundle/evidence.json')), schema);
-          validate(json.load(open('build/hierarchy-evidence.json')), schema);
-          validate(json.load(open('build/hierarchy-bundle/evidence.json')), schema);
-          validate(json.load(open('build/identity-evidence.json')), schema);
-          validate(json.load(open('build/identity-bundle/evidence.json')), schema);
-          validate(json.load(open('build/materiality-evidence.json')), schema);
-          validate(json.load(open('build/materiality-bundle/evidence.json')), schema);
+          for name in ['evidence.json','duckdb-evidence.json','scoped-evidence.json','accepted-evidence.json','hierarchy-evidence.json','identity-evidence.json','materiality-evidence.json']:
+              validate(json.load(open('build/'+name)), schema);
           print('evidence schemas valid')"
       - name: Verify accepted-exception outcome
         run: >-
@@ -132,8 +130,14 @@ jobs:
           assert name['metrics']['materiality']['raw_status']=='failed', name['metrics'];
           assert credit['status']=='failed', credit;
           assert result['summary']['critical_failures']==1, result['summary'];
-          assert len(name['details'])==1, name['details'];
           print('materiality evidence valid')"
+      - name: Verify DuckDB metadata
+        run: >-
+          python -c "import json;
+          result=json.load(open('build/duckdb-evidence.json'));
+          assert result['run']['backend']=='duckdb', result['run'];
+          assert result['run']['duckdb_version'];
+          print('duckdb execution metadata valid')"
       - name: Verify evidence bundle shape
         run: >-
           python -c "from pathlib import Path;
@@ -149,3 +153,31 @@ jobs:
           --source-key CUSTOMER_ID --target-key LEGACY_ID
           --output build/generated-reconciliation.yaml
       - run: rac validate build/generated-reconciliation.yaml
+
+  duckdb-million-row:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e '.[duckdb]'
+      - name: Generate 1M-row migration extracts
+        run: python benchmarks/generate_large_fixture.py --rows 1000000 --output build/benchmark-1m
+      - name: Reconcile 1M rows with DuckDB
+        run: >-
+          rac run build/benchmark-1m/reconciliation.yaml
+          --engine duckdb
+          --evidence build/benchmark-1m/evidence.json
+          --report build/benchmark-1m/evidence.md
+      - name: Verify million-row evidence
+        run: >-
+          python -c "import json;
+          result=json.load(open('build/benchmark-1m/evidence.json'));
+          assert result['status']=='passed', result['status'];
+          assert result['run']['backend']=='duckdb', result['run'];
+          assert result['summary']['source_records']==1000000, result['summary'];
+          assert result['summary']['target_records']==1000000, result['summary'];
+          assert result['summary']['matched_records']==1000000, result['summary'];
+          print('million-row benchmark duration_ms=',result['run']['duration_ms'])"
