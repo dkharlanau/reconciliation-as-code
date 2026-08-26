@@ -64,6 +64,17 @@ def _normalized_name(name: str) -> str:
     return re.sub(r"[^A-Z0-9]", "", name.upper())
 
 
+def _key_name_score(name: str) -> float:
+    normalized = _normalized_name(name)
+    if normalized == "ID":
+        return 1.0
+    if normalized.endswith("ID") or "KEY" in normalized:
+        return 0.9
+    if normalized.endswith("CODE") or normalized.endswith("NUMBER") or normalized.endswith("NO"):
+        return 0.7
+    return 0.2
+
+
 def inspect_dataset(
     path: str | Path, *, sheet: str | None = None, delimiter: str = ","
 ) -> dict[str, Any]:
@@ -103,10 +114,12 @@ def inspect_dataset(
                     "field": name,
                     "uniqueness": 1.0,
                     "null_rate": 0.0,
+                    "key_name_score": _key_name_score(name),
                     "reason": "single-column values are unique and non-null",
                 }
             )
 
+    candidate_keys.sort(key=lambda item: (-item["key_name_score"], item["field"]))
     return {
         "file": str(resolved),
         "format": resolved.suffix.lower().lstrip("."),
@@ -162,13 +175,13 @@ def _candidate_fields(profile: dict[str, Any]) -> list[str]:
 
 
 def suggest_key_pair(source_profile: dict[str, Any], target_profile: dict[str, Any]) -> tuple[str, str] | None:
-    source_candidates = _candidate_fields(source_profile)
-    target_candidates = _candidate_fields(target_profile)
+    source_candidates = [item for item in source_profile["candidate_keys"] if item.get("key_name_score", 0) >= 0.7]
+    target_candidates = [item for item in target_profile["candidate_keys"] if item.get("key_name_score", 0) >= 0.7]
     matches: list[tuple[str, str]] = []
     for source in source_candidates:
         for target in target_candidates:
-            if _normalized_name(source) == _normalized_name(target):
-                matches.append((source, target))
+            if _normalized_name(source["field"]) == _normalized_name(target["field"]):
+                matches.append((source["field"], target["field"]))
     return matches[0] if len(matches) == 1 else None
 
 
