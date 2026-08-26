@@ -20,8 +20,14 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: python -m pip install --upgrade pip
-      - run: pip install -e .
+      - run: pip install -e '.[dev]'
       - run: python -m unittest discover -s tests -v
       - run: rac validate examples/customer-migration/reconciliation.yaml
+      - run: rac schema evidence --output build/evidence.schema.json
       - name: Smoke-test evidence generation
         run: rac run examples/customer-migration/reconciliation.yaml --evidence build/evidence.json --report build/evidence.md --no-fail-on-diff
+      - name: Validate generated evidence schema
+        run: >-
+          python -c "import json; from jsonschema import validate;
+          validate(json.load(open('build/evidence.json')),
+          json.load(open('build/evidence.schema.json'))); print('evidence schema valid')"
