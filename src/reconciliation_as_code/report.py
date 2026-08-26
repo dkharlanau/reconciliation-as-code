@@ -56,6 +56,8 @@ def _hash_identity_fields(detail: dict[str, Any]) -> None:
     for name in ("key", "parent_key", "child_key", "path"):
         if name in detail and detail[name] is not None:
             detail[name] = _hash_value(detail[name])
+    if "failure_paths" in detail and isinstance(detail["failure_paths"], list):
+        detail["failure_paths"] = [_hash_value(path) for path in detail["failure_paths"]]
 
 
 def prepare_evidence(result: dict[str, Any], spec: dict[str, Any]) -> dict[str, Any]:
@@ -117,12 +119,7 @@ def prepare_evidence(result: dict[str, Any], spec: dict[str, Any]) -> dict[str, 
     object_payload = prepared.get("object")
     if key_mode == "hash" and isinstance(object_payload, dict):
         for detail in object_payload.get("details", []):
-            if "key" in detail:
-                detail["key"] = _hash_value(detail["key"])
-            if "path" in detail:
-                detail["path"] = _hash_value(detail["path"])
-            if "failure_paths" in detail:
-                detail["failure_paths"] = [_hash_value(path) for path in detail["failure_paths"]]
+            _hash_identity_fields(detail)
 
     return prepared
 
