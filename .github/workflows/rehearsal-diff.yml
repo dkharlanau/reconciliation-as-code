@@ -1,0 +1,58 @@
+name: rehearsal-diff
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e '.[dev]'
+      - name: Compare rehearsal 1 to rehearsal 2
+        run: >-
+          rac diff
+          examples/rehearsal-diff/rehearsal-1.json
+          examples/rehearsal-diff/rehearsal-2.json
+          --output build/rehearsal-diff.json
+          --report build/rehearsal-diff.md
+          --html build/rehearsal-diff.html
+      - name: Export and validate diff schema
+        run: |
+          rac schema diff --output build/evidence-diff.schema.json
+          python -c "import json; from jsonschema import validate; validate(json.load(open('build/rehearsal-diff.json')), json.load(open('build/evidence-diff.schema.json'))); print('diff schema valid')"
+      - name: Verify improvement classification
+        run: >-
+          python -c "import json;
+          r=json.load(open('build/rehearsal-diff.json'));
+          s=r['summary'];
+          assert s['new_discrepancies']==0,s;
+          assert s['resolved_discrepancies']==1,s;
+          assert s['persistent_discrepancies']==1,s;
+          assert s['changed_discrepancies']==1,s;
+          assert s['checks_improved']==1,s;
+          assert s['checks_regressed']==0,s;
+          assert s['improvement'] and not s['regression'],s;
+          print('rehearsal improvement classification valid')"
+      - name: Verify example is evidence-only
+        run: |
+          test ! -e examples/rehearsal-diff/legacy-export.csv
+          test ! -e examples/rehearsal-diff/s4-export.csv
+      - name: Reverse comparison must fail regression gate
+        shell: bash
+        run: |
+          set +e
+          rac diff examples/rehearsal-diff/rehearsal-2.json examples/rehearsal-diff/rehearsal-1.json \
+            --output build/reverse.json --report build/reverse.md --html build/reverse.html
+          code=$?
+          set -e
+          test "$code" -eq 1
