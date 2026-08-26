@@ -9,6 +9,7 @@ from pathlib import Path
 from . import __version__
 from .errors import ReconciliationError
 from .governance import run_reconciliation_with_governance
+from .hierarchy import validate_hierarchy_spec
 from .profiling import generate_spec, inspect_dataset, render_generated_spec
 from .report import prepare_evidence, write_bundle, write_json, write_markdown
 from .schema import SCHEMA_FILES, schema_text
@@ -133,6 +134,7 @@ def main(argv: list[str] | None = None) -> int:
 
         spec_path = Path(args.spec).resolve()
         spec = load_spec(spec_path)
+        validate_hierarchy_spec(spec)
         if args.command == "validate":
             print(f"valid: {spec_path} version={spec.get('version', 1)}")
             return 0
