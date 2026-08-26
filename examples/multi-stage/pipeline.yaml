@@ -1,0 +1,103 @@
+version: 1
+
+pipeline:
+  name: Customer migration four-stage pipeline
+  description: Demonstrates first-divergence diagnosis across source, extract, transformation and target.
+
+stages:
+  - id: source
+    label: Legacy source
+    endpoint:
+      file: source.csv
+      key: ID
+
+  - id: extract
+    label: Migration extract
+    endpoint:
+      file: extract.csv
+      key: ID
+
+  - id: transformed
+    label: Transformed load data
+    endpoint:
+      file: transformed.csv
+      key: ID
+
+  - id: target
+    label: Target system
+    endpoint:
+      file: target.csv
+      key: ID
+
+transitions:
+  - id: source-to-extract
+    from: source
+    to: extract
+    checks:
+      - id: coverage
+        type: record_coverage
+      - id: country
+        type: field_match
+        source: COUNTRY
+        target: COUNTRY
+      - id: amount
+        type: field_match
+        source: AMOUNT
+        target: AMOUNT
+        numeric_tolerance: 0
+
+  - id: extract-to-transformed
+    from: extract
+    to: transformed
+    checks:
+      - id: coverage
+        type: record_coverage
+      - id: country
+        type: field_match
+        source: COUNTRY
+        target: COUNTRY_CODE
+        map:
+          DE: DEU
+          US: USA
+      - id: amount
+        type: field_match
+        source: AMOUNT
+        target: AMOUNT
+        numeric_tolerance: 0
+
+  - id: transformed-to-target
+    from: transformed
+    to: target
+    checks:
+      - id: coverage
+        type: record_coverage
+      - id: country
+        type: field_match
+        source: COUNTRY_CODE
+        target: COUNTRY_CODE
+      - id: amount
+        type: field_match
+        source: AMOUNT
+        target: AMOUNT
+        numeric_tolerance: 0
+
+end_to_end:
+  id: source-to-target
+  checks:
+    - id: coverage
+      type: record_coverage
+    - id: country
+      type: field_match
+      source: COUNTRY
+      target: COUNTRY_CODE
+      map:
+        DE: DEU
+        US: USA
+    - id: amount
+      type: field_match
+      source: AMOUNT
+      target: AMOUNT
+      numeric_tolerance: 0
+
+evidence:
+  detail_limit: 100
