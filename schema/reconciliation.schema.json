@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/dkharlanau/reconciliation-as-code/schema/reconciliation.schema.json",
+  "title": "Reconciliation as Code specification",
+  "type": "object",
+  "required": ["version", "reconciliation", "source", "target", "checks"],
+  "properties": {
+    "version": {"const": 1},
+    "reconciliation": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "description": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "source": {"$ref": "#/$defs/endpoint"},
+    "target": {"$ref": "#/$defs/endpoint"},
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/check"}
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {"detail_limit": {"type": "integer", "minimum": 0}},
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "stringOrStringArray": {
+      "oneOf": [
+        {"type": "string", "minLength": 1},
+        {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+      ]
+    },
+    "endpoint": {
+      "type": "object",
+      "required": ["file", "key"],
+      "properties": {
+        "file": {"type": "string", "minLength": 1},
+        "key": {"$ref": "#/$defs/stringOrStringArray"},
+        "format": {"enum": ["csv", "xlsx", "xlsm"]},
+        "delimiter": {"type": "string", "minLength": 1, "maxLength": 1},
+        "sheet": {"type": "string"},
+        "key_normalize": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
+    "check": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "type": {"enum": ["record_coverage", "field_match", "control_total", "row_count"]},
+        "severity": {"enum": ["error", "warning"]}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

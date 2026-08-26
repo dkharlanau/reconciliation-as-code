@@ -1,0 +1,55 @@
+version: 1
+
+reconciliation:
+  name: Customer legacy to S/4HANA
+  description: Example migration control between a legacy customer extract and an S/4HANA extract.
+
+source:
+  file: legacy.csv
+  key: CUSTOMER_ID
+  key_normalize: [trim, strip_leading_zeros]
+
+target:
+  file: s4.csv
+  key: LEGACY_ID
+  key_normalize: [trim, strip_leading_zeros]
+
+checks:
+  - id: customer-coverage
+    type: record_coverage
+
+  - id: country-mapping
+    type: field_match
+    source: COUNTRY
+    target: COUNTRY_CODE
+    normalize: [trim, uppercase]
+    map:
+      DE: DEU
+      US: USA
+      GB: GBR
+
+  - id: credit-limit
+    type: field_match
+    source: CREDIT_LIMIT
+    target: CREDIT_LIMIT
+    numeric_tolerance: 0.01
+
+  - id: name
+    type: field_match
+    source: NAME
+    target: NAME
+    normalize: [trim, uppercase]
+    severity: warning
+
+  - id: credit-control-total
+    type: control_total
+    source: CREDIT_LIMIT
+    target: CREDIT_LIMIT
+    tolerance: 0.01
+
+  - id: row-count
+    type: row_count
+    tolerance: 0
+
+evidence:
+  detail_limit: 50

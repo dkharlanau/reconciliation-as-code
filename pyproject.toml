@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reconciliation-as-code"
+version = "0.1.0"
+description = "Define and run deterministic cross-system reconciliations from versioned YAML specifications."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Dzmitryi Kharlanau" }]
+dependencies = ["PyYAML>=6.0"]
+keywords = ["reconciliation", "data-quality", "migration", "cutover", "sap", "controls"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+
+[project.optional-dependencies]
+excel = ["openpyxl>=3.1"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+rac = "reconciliation_as_code.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/dkharlanau/reconciliation-as-code"
+Repository = "https://github.com/dkharlanau/reconciliation-as-code"
+Issues = "https://github.com/dkharlanau/reconciliation-as-code/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]

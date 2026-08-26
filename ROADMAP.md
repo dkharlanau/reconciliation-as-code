@@ -1,21 +1,55 @@
 # Roadmap
 
-## Phase 1 — Core model
+## 0.1 — Working MVP ✅
 
-Define the canonical structured representation and its schema.
+- YAML reconciliation specification
+- CSV source/target adapter
+- optional Excel adapter
+- single/composite business keys
+- key normalization and duplicate detection
+- record coverage
+- mapping-aware field comparison
+- numeric tolerances
+- control totals and row counts
+- warning/error severity
+- evidence JSON + Markdown
+- input/spec SHA-256 fingerprints
+- CLI exit codes for CI gates
+- example, tests, JSON Schema, GitHub Actions
 
-## Phase 2 — Validation
+## 0.2 — Useful on real migration files
 
-Add deterministic validation rules and test fixtures.
+- JSON / JSONL and Parquet adapters
+- aggregate-by-dimension controls
+- date and percentage tolerances
+- conditional checks (`when`)
+- ignore/filter rules
+- richer exception categories
+- evidence CSV export
+- configurable null semantics
+- performance tests for 100k–1M rows
 
-## Phase 3 — Visualization
+## 0.3 — Enterprise integration
 
-Add human-readable visual views and generated documentation.
+- SQL adapter
+- plugin interface for source/target adapters
+- reusable rule packs
+- external mapping-file references
+- JUnit/SARIF-like CI output
+- signed run manifest
+- baseline vs current reconciliation diff
 
-## Phase 4 — Interoperability
+## 0.4 — Connected “as-code” toolkit
 
-Add import/export to relevant open standards and common project formats.
+- consume Mapping as Code artifacts
+- link transformation steps to Transformation Graph
+- bind checks to Interface as Code contracts
+- publish reconciliation evidence to Project Evidence Graph
+- agent-readable run summaries and remediation context
 
-## Phase 5 — Automation
+## Non-goals
 
-Add CLI, CI integration, and machine-facing outputs where useful.
+- storing enterprise credentials in YAML
+- replacing source-system extraction tooling
+- silently applying AI-generated reconciliation decisions
+- becoming an ETL/transformation engine

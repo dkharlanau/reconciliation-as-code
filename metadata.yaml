@@ -10,21 +10,40 @@ portfolio:
   sap_proof: 10
   brand_value: 9
 
-status: planning
+status: working-mvp
 
 implementation:
   repository_created: true
-  implementation_status: not-started
+  implementation_status: alpha-mvp
   codex_fit: 5/5
   sap_access_required: false
+  language: python
+  cli: rac
+  spec_version: 1
+
+capabilities:
+  - csv-reconciliation
+  - excel-reconciliation
+  - business-key-matching
+  - duplicate-key-detection
+  - record-coverage
+  - field-match
+  - mapping-aware-comparison
+  - numeric-tolerance
+  - control-total
+  - row-count
+  - evidence-json
+  - evidence-markdown
+  - ci-exit-codes
 
 principles:
   - versionable
   - portable
   - machine-readable
   - deterministic-first
-  - visual
+  - evidence-first
   - git-friendly
+  - vendor-neutral
   - interoperable
 
 primary_users:
@@ -34,3 +53,4 @@ primary_users:
   - integration consultants
   - business analysts
   - transformation teams
+  - migration and cutover teams
