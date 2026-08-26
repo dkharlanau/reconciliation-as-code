@@ -6,8 +6,9 @@ from typing import Any
 import yaml
 
 from .errors import SpecError
+from .filtering import validate_predicate
 
-SUPPORTED_CHECKS = {"record_coverage", "field_match", "control_total", "row_count"}
+SUPPORTED_CHECKS = {"record_coverage", "field_match", "control_total", "row_count", "aggregate_match"}
 SUPPORTED_SEVERITIES = {"error", "warning"}
 SUPPORTED_NORMALIZERS = {
     "trim",
@@ -16,6 +17,8 @@ SUPPORTED_NORMALIZERS = {
     "empty_to_null",
     "strip_leading_zeros",
 }
+SUPPORTED_NULL_SEMANTICS = {"equal", "empty_is_null", "never_equal"}
+SUPPORTED_AGGREGATES = {"count", "distinct_count", "sum"}
 
 
 def load_spec(path: str | Path) -> dict[str, Any]:
@@ -54,6 +57,46 @@ def _validate_endpoint(name: str, endpoint: Any) -> None:
     unknown = set(normalizers) - SUPPORTED_NORMALIZERS
     if unknown:
         raise SpecError(f"Unsupported {name}.key_normalize values: {sorted(unknown)}")
+    if endpoint.get("filter") is not None:
+        validate_predicate(endpoint["filter"], f"{name}.filter")
+
+
+def _validate_scopes(spec: dict[str, Any]) -> set[str]:
+    scopes = spec.get("scopes", {})
+    if scopes is None:
+        return set()
+    if not isinstance(scopes, dict):
+        raise SpecError("scopes must be an object keyed by scope name.")
+    names: set[str] = set()
+    for name, scope in scopes.items():
+        if not isinstance(name, str) or not name:
+            raise SpecError("scope names must be non-empty strings.")
+        if not isinstance(scope, dict) or not scope:
+            raise SpecError(f"scope {name!r} must be a non-empty object.")
+        unknown = set(scope) - {"source", "target"}
+        if unknown:
+            raise SpecError(f"scope {name!r} has unsupported keys: {sorted(unknown)}")
+        if "source" in scope:
+            validate_predicate(scope["source"], f"scopes.{name}.source")
+        if "target" in scope:
+            validate_predicate(scope["target"], f"scopes.{name}.target")
+        names.add(name)
+    return names
+
+
+def _validate_when(check: dict[str, Any], check_id: str) -> None:
+    when = check.get("when")
+    if when is None:
+        return
+    if not isinstance(when, dict) or not when:
+        raise SpecError(f"check {check_id!r}.when must be a non-empty object.")
+    unknown = set(when) - {"source", "target"}
+    if unknown:
+        raise SpecError(f"check {check_id!r}.when has unsupported keys: {sorted(unknown)}")
+    if "source" in when:
+        validate_predicate(when["source"], f"checks.{check_id}.when.source")
+    if "target" in when:
+        validate_predicate(when["target"], f"checks.{check_id}.when.target")
 
 
 def validate_spec(spec: dict[str, Any]) -> None:
@@ -73,6 +116,7 @@ def validate_spec(spec: dict[str, Any]) -> None:
     if len(source_keys) != len(target_keys):
         raise SpecError("source.key and target.key must contain the same number of fields.")
 
+    scope_names = _validate_scopes(spec)
     checks = spec.get("checks")
     if not isinstance(checks, list) or not checks:
         raise SpecError("checks must be a non-empty list.")
@@ -96,6 +140,10 @@ def validate_spec(spec: dict[str, Any]) -> None:
         severity = check.get("severity", "error")
         if severity not in SUPPORTED_SEVERITIES:
             raise SpecError(f"checks[{index}].severity must be error or warning.")
+        scope = check.get("scope")
+        if scope is not None and (not isinstance(scope, str) or scope not in scope_names):
+            raise SpecError(f"check {check_id!r}.scope must reference a declared scope.")
+        _validate_when(check, check_id)
 
         if check_type == "field_match":
             if not isinstance(check.get("source"), str) or not isinstance(check.get("target"), str):
@@ -114,6 +162,21 @@ def validate_spec(spec: dict[str, Any]) -> None:
                 not isinstance(numeric_tolerance, (int, float)) or numeric_tolerance < 0
             ):
                 raise SpecError(f"field_match check {check_id!r}.numeric_tolerance must be >= 0.")
+            percentage_tolerance = check.get("percentage_tolerance")
+            if percentage_tolerance is not None and (
+                not isinstance(percentage_tolerance, (int, float)) or percentage_tolerance < 0
+            ):
+                raise SpecError(f"field_match check {check_id!r}.percentage_tolerance must be >= 0.")
+            date_tolerance_days = check.get("date_tolerance_days")
+            if date_tolerance_days is not None and (
+                not isinstance(date_tolerance_days, (int, float)) or date_tolerance_days < 0
+            ):
+                raise SpecError(f"field_match check {check_id!r}.date_tolerance_days must be >= 0.")
+            null_semantics = check.get("null_semantics", "equal")
+            if null_semantics not in SUPPORTED_NULL_SEMANTICS:
+                raise SpecError(
+                    f"field_match check {check_id!r}.null_semantics must be one of {sorted(SUPPORTED_NULL_SEMANTICS)}."
+                )
             max_mismatches = check.get("max_mismatches", 0)
             if not isinstance(max_mismatches, int) or max_mismatches < 0:
                 raise SpecError(f"field_match check {check_id!r}.max_mismatches must be an integer >= 0.")
@@ -129,6 +192,25 @@ def validate_spec(spec: dict[str, Any]) -> None:
             tolerance = check.get("tolerance", 0)
             if not isinstance(tolerance, int) or tolerance < 0:
                 raise SpecError(f"row_count check {check_id!r}.tolerance must be an integer >= 0.")
+
+        if check_type == "aggregate_match":
+            operation = check.get("operation", "count")
+            if operation not in SUPPORTED_AGGREGATES:
+                raise SpecError(f"aggregate_match check {check_id!r}.operation must be one of {sorted(SUPPORTED_AGGREGATES)}.")
+            group_by = check.get("group_by")
+            if not isinstance(group_by, dict) or "source" not in group_by or "target" not in group_by:
+                raise SpecError(f"aggregate_match check {check_id!r} requires group_by.source and group_by.target.")
+            source_groups = _as_list(group_by["source"], f"checks.{check_id}.group_by.source")
+            target_groups = _as_list(group_by["target"], f"checks.{check_id}.group_by.target")
+            if len(source_groups) != len(target_groups):
+                raise SpecError(f"aggregate_match check {check_id!r} source/target group_by field counts must match.")
+            if operation in {"sum", "distinct_count"}:
+                if not isinstance(check.get("source"), str) or not isinstance(check.get("target"), str):
+                    raise SpecError(f"aggregate_match {operation} check {check_id!r} requires source and target fields.")
+            for tolerance_name in ("tolerance", "percentage_tolerance"):
+                tolerance = check.get(tolerance_name, 0)
+                if not isinstance(tolerance, (int, float)) or tolerance < 0:
+                    raise SpecError(f"aggregate_match check {check_id!r}.{tolerance_name} must be >= 0.")
 
     evidence = spec.get("evidence", {})
     if evidence is not None:

@@ -17,6 +17,10 @@
     },
     "source": {"$ref": "#/$defs/endpoint"},
     "target": {"$ref": "#/$defs/endpoint"},
+    "scopes": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/scope"}
+    },
     "checks": {
       "type": "array",
       "minItems": 1,
@@ -35,6 +39,29 @@
         {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
       ]
     },
+    "predicate": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "field": {"type": "string", "minLength": 1},
+        "op": {"enum": ["eq", "ne", "in", "not_in", "contains", "starts_with", "is_null", "not_null", "gt", "gte", "lt", "lte"]},
+        "value": {},
+        "normalize": {"type": "array", "items": {"type": "string"}},
+        "all": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/predicate"}},
+        "any": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/predicate"}},
+        "not": {"$ref": "#/$defs/predicate"}
+      },
+      "additionalProperties": false
+    },
+    "scope": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "source": {"$ref": "#/$defs/predicate"},
+        "target": {"$ref": "#/$defs/predicate"}
+      },
+      "additionalProperties": false
+    },
     "endpoint": {
       "type": "object",
       "required": ["file", "key"],
@@ -44,7 +71,8 @@
         "format": {"enum": ["csv", "xlsx", "xlsm"]},
         "delimiter": {"type": "string", "minLength": 1, "maxLength": 1},
         "sheet": {"type": "string"},
-        "key_normalize": {"type": "array", "items": {"type": "string"}}
+        "key_normalize": {"type": "array", "items": {"type": "string"}},
+        "filter": {"$ref": "#/$defs/predicate"}
       },
       "additionalProperties": true
     },
@@ -53,8 +81,31 @@
       "required": ["type"],
       "properties": {
         "id": {"type": "string", "minLength": 1},
-        "type": {"enum": ["record_coverage", "field_match", "control_total", "row_count"]},
-        "severity": {"enum": ["error", "warning"]}
+        "type": {"enum": ["record_coverage", "field_match", "control_total", "row_count", "aggregate_match"]},
+        "severity": {"enum": ["error", "warning"]},
+        "scope": {"type": "string", "minLength": 1},
+        "when": {"$ref": "#/$defs/scope"},
+        "source": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1},
+        "normalize": {"type": "array", "items": {"type": "string"}},
+        "map": {"type": "object"},
+        "numeric_tolerance": {"type": "number", "minimum": 0},
+        "percentage_tolerance": {"type": "number", "minimum": 0},
+        "date_tolerance_days": {"type": "number", "minimum": 0},
+        "null_semantics": {"enum": ["equal", "empty_is_null", "never_equal"]},
+        "max_mismatches": {"type": "integer", "minimum": 0},
+        "allow_unexpected": {"type": "boolean"},
+        "tolerance": {"type": "number", "minimum": 0},
+        "operation": {"enum": ["count", "distinct_count", "sum"]},
+        "group_by": {
+          "type": "object",
+          "required": ["source", "target"],
+          "properties": {
+            "source": {"$ref": "#/$defs/stringOrStringArray"},
+            "target": {"$ref": "#/$defs/stringOrStringArray"}
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": true
     }
