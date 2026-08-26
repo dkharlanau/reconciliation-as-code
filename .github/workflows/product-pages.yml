@@ -1,0 +1,38 @@
+name: Publish Product Page
+
+on:
+  push:
+    branches: [main]
+    paths: ["docs/product.html", "docs/agent-manifest.json", ".github/workflows/product-pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Stage product site
+        run: |
+          mkdir -p _site
+          cp docs/product.html _site/index.html
+          cp docs/agent-manifest.json _site/agent-manifest.json
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
