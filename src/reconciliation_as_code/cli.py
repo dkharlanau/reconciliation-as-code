@@ -8,10 +8,10 @@ from pathlib import Path
 
 from . import __version__
 from .errors import ReconciliationError
-from .governance import run_reconciliation_with_governance
 from .identity import validate_identity_spec
 from .profiling import generate_spec, inspect_dataset, render_generated_spec
 from .report import prepare_evidence, write_bundle, write_json, write_markdown
+from .runtime import run_reconciliation_runtime
 from .schema import SCHEMA_FILES, schema_text
 from .spec import load_spec
 
@@ -28,7 +28,7 @@ def _parser() -> argparse.ArgumentParser:
         "--engine",
         choices=["python", "duckdb"],
         default="python",
-        help="Execution backend. DuckDB scales flat CSV/Parquet reconciliations without materializing all rows in Python.",
+        help="Execution backend. DuckDB scales flat CSV/Parquet and extracted SQL reconciliations without materializing all rows in Python.",
     )
     run.add_argument("--evidence", default="build/evidence.json", help="Evidence JSON output path.")
     run.add_argument("--report", default="build/evidence.md", help="Markdown report output path.")
@@ -108,7 +108,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "validate":
             print(f"valid: {spec_path} version={spec.get('version', 1)}")
             return 0
-        raw_result = run_reconciliation_with_governance(
+        raw_result = run_reconciliation_runtime(
             spec,
             base_dir=spec_path.parent,
             spec_path=spec_path,
