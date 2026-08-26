@@ -1,0 +1,44 @@
+version: 1
+
+reconciliation:
+  name: SAP S/4HANA inventory quantity reconciliation
+  description: Material/plant stock validation with leading-zero normalization and grouped quantity controls.
+
+source:
+  file: legacy_inventory.csv
+  key: [PLANT, MATERIAL, BATCH]
+  key_normalize: [trim, strip_leading_zeros]
+
+target:
+  file: s4_inventory.csv
+  key: [PLANT, MATERIAL, BATCH]
+  key_normalize: [trim, strip_leading_zeros]
+
+checks:
+  - id: coverage
+    type: record_coverage
+
+  - id: quantity-by-material-plant
+    type: field_match
+    source: QUANTITY
+    target: QUANTITY
+    numeric_tolerance: 0.1
+
+  - id: quantity-by-plant
+    type: aggregate_match
+    operation: sum
+    source: QUANTITY
+    target: QUANTITY
+    group_by:
+      source: PLANT
+      target: PLANT
+    tolerance: 0.1
+
+  - id: grand-quantity
+    type: control_total
+    source: QUANTITY
+    target: QUANTITY
+    tolerance: 0.1
+
+evidence:
+  detail_limit: 100
