@@ -1,0 +1,74 @@
+version: 1
+
+object:
+  type: MaterialProduct
+
+reconciliation:
+  name: SAP S/4HANA Material master migration reconciliation
+  description: Material/Product root validation with plant-level views and leading-zero key normalization.
+
+source:
+  file: legacy_materials.csv
+  key: MATNR
+  key_normalize: [trim, strip_leading_zeros]
+
+target:
+  file: s4_products.csv
+  key: PRODUCT_ID
+  key_normalize: [trim, strip_leading_zeros]
+
+checks:
+  - id: root-coverage
+    type: record_coverage
+
+  - id: description
+    type: field_match
+    source: DESCRIPTION
+    target: DESCRIPTION
+
+  - id: base-uom
+    type: field_match
+    source: BASE_UOM
+    target: BASE_UOM
+
+  - id: material-type
+    type: field_match
+    source: MATERIAL_TYPE
+    target: PRODUCT_TYPE
+    map:
+      ROH: RM
+      FERT: FG
+
+children:
+  plant_views:
+    source:
+      file: legacy_plant_views.csv
+      key: [MATNR, PLANT]
+      key_normalize: [trim, strip_leading_zeros]
+      parent_key: MATNR
+      parent_key_normalize: [trim, strip_leading_zeros]
+    target:
+      file: s4_plant_views.csv
+      key: [PRODUCT_ID, PLANT]
+      key_normalize: [trim, strip_leading_zeros]
+      parent_key: PRODUCT_ID
+      parent_key_normalize: [trim, strip_leading_zeros]
+    checks:
+      - id: coverage
+        type: record_coverage
+      - id: mrp-type
+        type: field_match
+        source: MRP_TYPE
+        target: MRP_TYPE
+      - id: procurement-type
+        type: field_match
+        source: PROCUREMENT_TYPE
+        target: PROCUREMENT_TYPE
+      - id: min-lot
+        type: field_match
+        source: MIN_LOT
+        target: MIN_LOT
+        numeric_tolerance: 0
+
+evidence:
+  detail_limit: 100

@@ -1,0 +1,81 @@
+name: sap-starter-packs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  sap-s4hana-examples:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e '.[dev]'
+
+      - name: Validate SAP starter specifications
+        run: |
+          rac validate examples/sap-s4hana/customer-to-bp/reconciliation.yaml
+          rac validate examples/sap-s4hana/supplier-to-bp/reconciliation.yaml
+          rac validate examples/sap-s4hana/material-product/reconciliation.yaml
+          rac validate examples/sap-s4hana/finance-inventory-balances/finance-reconciliation.yaml
+          rac validate examples/sap-s4hana/finance-inventory-balances/inventory-reconciliation.yaml
+
+      - name: Run Customer to BP pack
+        run: >-
+          rac run examples/sap-s4hana/customer-to-bp/reconciliation.yaml
+          --evidence build/sap/customer-bp.json
+          --report build/sap/customer-bp.md
+          --bundle build/sap/customer-bp-bundle
+          --no-fail-on-diff
+
+      - name: Run Supplier to BP pack
+        run: >-
+          rac run examples/sap-s4hana/supplier-to-bp/reconciliation.yaml
+          --evidence build/sap/supplier-bp.json
+          --report build/sap/supplier-bp.md
+          --bundle build/sap/supplier-bp-bundle
+          --no-fail-on-diff
+
+      - name: Run Material/Product pack
+        run: >-
+          rac run examples/sap-s4hana/material-product/reconciliation.yaml
+          --evidence build/sap/material-product.json
+          --report build/sap/material-product.md
+          --bundle build/sap/material-product-bundle
+          --no-fail-on-diff
+
+      - name: Run finance balance pack
+        run: >-
+          rac run examples/sap-s4hana/finance-inventory-balances/finance-reconciliation.yaml
+          --evidence build/sap/finance.json
+          --report build/sap/finance.md
+          --no-fail-on-diff
+
+      - name: Run inventory balance pack
+        run: >-
+          rac run examples/sap-s4hana/finance-inventory-balances/inventory-reconciliation.yaml
+          --evidence build/sap/inventory.json
+          --report build/sap/inventory.md
+          --no-fail-on-diff
+
+      - name: Verify expected SAP evidence
+        run: >-
+          python -c "import json;
+          load=lambda n:json.load(open('build/sap/'+n+'.json'));
+          customer=load('customer-bp'); supplier=load('supplier-bp'); material=load('material-product'); finance=load('finance'); inventory=load('inventory');
+          check=lambda r,i:next(c for c in r['checks'] if c['id']==i);
+          assert customer['status']=='failed';
+          assert check(customer,'child:addresses:postal-code')['metrics']['mismatches']==1;
+          assert check(customer,'child:sales_areas:coverage')['metrics']['missing_in_target']==1;
+          assert supplier['status']=='failed' and check(supplier,'child:bank_accounts:iban')['metrics']['mismatches']==1;
+          assert material['status']=='failed' and check(material,'child:plant_views:min-lot')['metrics']['mismatches']==1;
+          assert finance['status']=='failed' and check(finance,'amount-by-company-currency')['metrics']['groups_failed']==1;
+          assert inventory['status']=='failed' and check(inventory,'quantity-by-plant')['metrics']['groups_failed']==1;
+          print('all SAP starter packs produced expected evidence')"

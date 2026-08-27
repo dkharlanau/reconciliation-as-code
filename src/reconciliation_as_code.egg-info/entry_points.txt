@@ -1,0 +1,2 @@
+[console_scripts]
+rac = reconciliation_as_code.cli:main
