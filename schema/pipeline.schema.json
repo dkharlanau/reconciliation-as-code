@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/dkharlanau/reconciliation-as-code/schema/pipeline.schema.json",
+  "title": "Reconciliation as Code multi-stage pipeline specification",
+  "type": "object",
+  "required": ["version", "pipeline", "stages", "transitions"],
+  "properties": {
+    "version": {"const": 1},
+    "pipeline": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "description": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 2,
+      "items": {"$ref": "#/$defs/stage"}
+    },
+    "transitions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/transition"}
+    },
+    "end_to_end": {"$ref": "#/$defs/comparison"},
+    "evidence": {"type": "object"}
+  },
+  "$defs": {
+    "stringOrStringArray": {
+      "oneOf": [
+        {"type": "string", "minLength": 1},
+        {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+      ]
+    },
+    "sqlInput": {
+      "type": "object",
+      "required": ["connection", "query"],
+      "properties": {
+        "connection": {"type": "string", "minLength": 1},
+        "query": {"type": "string", "minLength": 1},
+        "params": {"type": "object"},
+        "max_rows": {"type": "integer", "minimum": 1},
+        "timeout_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "chunk_size": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    },
+    "endpoint": {
+      "type": "object",
+      "required": ["key"],
+      "oneOf": [
+        {"required": ["file"], "not": {"required": ["sql"]}},
+        {"required": ["sql"], "not": {"required": ["file"]}}
+      ],
+      "properties": {
+        "file": {"type": "string", "minLength": 1},
+        "sql": {"$ref": "#/$defs/sqlInput"},
+        "key": {"$ref": "#/$defs/stringOrStringArray"},
+        "format": {"enum": ["csv", "xlsx", "xlsm", "parquet"]},
+        "delimiter": {"type": "string", "minLength": 1, "maxLength": 1},
+        "sheet": {"type": "string"},
+        "key_normalize": {"type": "array", "items": {"type": "string"}},
+        "filter": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "stage": {
+      "type": "object",
+      "required": ["id", "endpoint"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "label": {"type": "string"},
+        "endpoint": {"$ref": "#/$defs/endpoint"}
+      },
+      "additionalProperties": false
+    },
+    "check": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "type": {"enum": ["record_coverage", "field_match", "control_total", "row_count", "aggregate_match"]},
+        "severity": {"enum": ["error", "warning"]}
+      },
+      "additionalProperties": true
+    },
+    "comparison": {
+      "type": "object",
+      "required": ["checks"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "description": {"type": "string"},
+        "checks": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/check"}},
+        "scopes": {"type": "object"},
+        "identity": {"type": "object"},
+        "children": {"type": "object"},
+        "exceptions": {"type": "object"},
+        "materiality": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "transition": {
+      "allOf": [
+        {"$ref": "#/$defs/comparison"},
+        {
+          "type": "object",
+          "required": ["id", "from", "to"],
+          "properties": {
+            "id": {"type": "string", "minLength": 1},
+            "from": {"type": "string", "minLength": 1},
+            "to": {"type": "string", "minLength": 1}
+          }
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}
