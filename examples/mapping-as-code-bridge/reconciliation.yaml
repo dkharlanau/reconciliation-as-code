@@ -1,0 +1,29 @@
+version: 1
+
+reconciliation:
+  name: Mapping as Code bridge example
+  description: Reuse a pinned external value mapping instead of duplicating it in reconciliation controls.
+
+source:
+  file: source.csv
+  key: id
+
+target:
+  file: target.csv
+  key: id
+
+mapping_artifacts:
+  customer-country:
+    file: customer.mapping.yaml
+    sha256: 39e87e7039053c75e16402b5a0a7d610bc04ca919bacce96064c2c0034169ade
+
+checks:
+  - id: coverage
+    type: record_coverage
+  - id: country
+    type: field_match
+    source: country
+    target: Country
+    map_ref:
+      artifact: customer-country
+      field: customer-country
