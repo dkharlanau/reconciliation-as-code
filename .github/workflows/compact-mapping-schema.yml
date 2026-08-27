@@ -1,0 +1,64 @@
+name: compact-mapping-schema
+
+on:
+  push:
+    branches:
+      - agent/mapping-artifact-bridge
+    paths:
+      - .github/workflows/compact-mapping-schema.yml
+
+permissions:
+  contents: write
+
+jobs:
+  compact:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/mapping-artifact-bridge
+          fetch-depth: 0
+      - name: Restore current-main formatting and add only bridge schema fields
+        run: |
+          git fetch origin main
+          git show origin/main:schema/reconciliation.schema.json > schema/reconciliation.schema.json
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('schema/reconciliation.schema.json')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              '    "identity": {"$ref": "#/$defs/identity"},\n',
+              '    "identity": {"$ref": "#/$defs/identity"},\n    "mapping_artifacts": {"type": "object", "additionalProperties": {"$ref": "#/$defs/mappingArtifact"}},\n',
+              1,
+          )
+          marker = '    "materialityPolicy": {\n'
+          defs = '''    "mappingArtifact": {
+      "type": "object", "required": ["file"],
+      "properties": {"file": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+      "additionalProperties": false
+    },
+    "mappingArtifactRef": {
+      "type": "object", "required": ["artifact", "field"],
+      "properties": {"artifact": {"type": "string", "minLength": 1}, "field": {"type": "string", "minLength": 1}},
+      "additionalProperties": false
+    },
+'''
+          if marker not in text:
+              raise SystemExit('materialityPolicy marker not found')
+          text = text.replace(marker, defs + marker, 1)
+          old = '        "normalize": {"type": "array", "items": {"type": "string"}}, "map": {"type": "object"},\n'
+          new = '        "normalize": {"type": "array", "items": {"type": "string"}}, "map": {"type": "object"}, "map_ref": {"$ref": "#/$defs/mappingArtifactRef"},\n'
+          if old not in text:
+              raise SystemExit('map property marker not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          cp schema/reconciliation.schema.json src/reconciliation_as_code/_schemas/reconciliation.schema.json
+      - name: Commit compact schema change
+        run: |
+          rm .github/workflows/compact-mapping-schema.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: keep Mapping bridge schema diff reviewable"
+          git push origin HEAD:agent/mapping-artifact-bridge
