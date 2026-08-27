@@ -1,0 +1,81 @@
+name: Reconciliation as Code
+description: Run a deterministic reconciliation specification and retain its evidence bundle in GitHub Actions.
+author: Dzmitryi Kharlanau
+
+inputs:
+  spec:
+    description: Repository-relative path to the reconciliation YAML specification.
+    required: true
+  evidence:
+    description: Output path for machine-readable evidence.
+    required: false
+    default: rac-evidence.json
+  report:
+    description: Output path for the human-readable Markdown report.
+    required: false
+    default: rac-report.md
+  artifact-name:
+    description: GitHub Actions artifact name for evidence and report files.
+    required: false
+    default: reconciliation-evidence
+  extras:
+    description: Optional package extras to install, for example duckdb or excel. Use comma-separated names without brackets.
+    required: false
+    default: ""
+
+outputs:
+  evidence:
+    description: Evidence JSON path.
+    value: ${{ steps.paths.outputs.evidence }}
+  report:
+    description: Markdown report path.
+    value: ${{ steps.paths.outputs.report }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install Reconciliation as Code
+      shell: bash
+      env:
+        RAC_ACTION_PATH: ${{ github.action_path }}
+        RAC_EXTRAS: ${{ inputs.extras }}
+      run: |
+        python -m pip install --upgrade pip
+        if [[ -n "${RAC_EXTRAS}" ]]; then
+          python -m pip install "${RAC_ACTION_PATH}[${RAC_EXTRAS}]"
+        else
+          python -m pip install "${RAC_ACTION_PATH}"
+        fi
+
+    - name: Validate specification
+      shell: bash
+      run: rac validate "${{ inputs.spec }}"
+
+    - name: Run reconciliation
+      shell: bash
+      run: rac run "${{ inputs.spec }}" --evidence "${{ inputs.evidence }}" --report "${{ inputs.report }}"
+
+    - name: Expose output paths
+      id: paths
+      shell: bash
+      run: |
+        echo "evidence=${{ inputs.evidence }}" >> "$GITHUB_OUTPUT"
+        echo "report=${{ inputs.report }}" >> "$GITHUB_OUTPUT"
+
+    - name: Upload reconciliation evidence
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: |
+          ${{ inputs.evidence }}
+          ${{ inputs.report }}
+        if-no-files-found: error
+
+branding:
+  icon: check-square
+  color: blue
