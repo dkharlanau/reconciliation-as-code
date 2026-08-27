@@ -1,0 +1,25 @@
+schema_version: "0.1"
+
+mapping:
+  id: country-iso2-to-iso3
+  title: Country ISO2 to ISO3
+  source:
+    system: legacy
+    object: customer
+  target:
+    system: target
+    object: business-partner
+  fields:
+    - id: customer-country
+      source:
+        field: country
+      target:
+        field: Country
+      transform:
+        type: lookup
+        reference: iso3-country
+
+value_maps:
+  iso3-country:
+    DE: DEU
+    GB: GBR
