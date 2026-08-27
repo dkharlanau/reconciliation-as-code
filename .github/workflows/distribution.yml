@@ -1,0 +1,100 @@
+name: Distribution smoke
+
+on:
+  pull_request:
+    paths:
+      - action.yml
+      - Dockerfile
+      - pyproject.toml
+      - src/**
+      - examples/mapping-as-code-bridge/**
+      - .github/workflows/distribution.yml
+      - .github/workflows/release.yml
+      - docs/distribution.md
+      - CHANGELOG.md
+  push:
+    branches: [main]
+    paths:
+      - action.yml
+      - Dockerfile
+      - pyproject.toml
+      - src/**
+      - examples/mapping-as-code-bridge/**
+      - .github/workflows/distribution.yml
+      - .github/workflows/release.yml
+      - docs/distribution.md
+      - CHANGELOG.md
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade build twine
+      - run: python -m build
+      - run: python -m twine check dist/*
+      - name: Smoke installed wheel
+        run: |
+          python -m venv /tmp/rac-wheel
+          /tmp/rac-wheel/bin/python -m pip install --upgrade pip
+          /tmp/rac-wheel/bin/python -m pip install dist/*.whl
+          /tmp/rac-wheel/bin/rac validate examples/mapping-as-code-bridge/reconciliation.yaml
+          mkdir -p build
+          /tmp/rac-wheel/bin/rac run examples/mapping-as-code-bridge/reconciliation.yaml \
+            --evidence build/wheel-evidence.json \
+            --report build/wheel-evidence.md
+          python - <<'PY'
+          import json
+          evidence = json.load(open('build/wheel-evidence.json', encoding='utf-8'))
+          assert evidence['status'] == 'passed'
+          assert evidence['inputs']['mapping:customer-country']['mapping_id'] == 'country-iso2-to-iso3'
+          PY
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build minimal CLI image
+        run: docker build -t reconciliation-as-code:ci .
+      - name: Run passing example in container
+        run: |
+          mkdir -p build
+          docker run --rm -v "$PWD:/work" -w /work reconciliation-as-code:ci \
+            run examples/mapping-as-code-bridge/reconciliation.yaml \
+            --evidence build/docker-evidence.json \
+            --report build/docker-evidence.md
+          python - <<'PY'
+          import json
+          evidence = json.load(open('build/docker-evidence.json', encoding='utf-8'))
+          assert evidence['status'] == 'passed'
+          assert evidence['inputs']['mapping:customer-country']['fields'] == ['customer-country']
+          PY
+
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run local reusable Action
+        id: rac
+        uses: ./
+        with:
+          spec: examples/mapping-as-code-bridge/reconciliation.yaml
+          evidence: build/action-evidence.json
+          report: build/action-evidence.md
+          artifact-name: distribution-smoke-evidence
+      - name: Verify Action outputs
+        run: |
+          test "${{ steps.rac.outputs.evidence }}" = "build/action-evidence.json"
+          test "${{ steps.rac.outputs.report }}" = "build/action-evidence.md"
+          python - <<'PY'
+          import json
+          evidence = json.load(open('build/action-evidence.json', encoding='utf-8'))
+          assert evidence['status'] == 'passed'
+          assert evidence['inputs']['mapping:customer-country']['mapping_id'] == 'country-iso2-to-iso3'
+          PY
