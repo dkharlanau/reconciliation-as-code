@@ -1,0 +1,162 @@
+name: Release
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - .github/workflows/distribution.yml
+      - action.yml
+      - Dockerfile
+      - pyproject.toml
+      - CHANGELOG.md
+      - docs/distribution.md
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Read package version and verify immutable tag name
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(python - <<'PY'
+          import tomllib
+          from pathlib import Path
+          data = tomllib.loads(Path('pyproject.toml').read_text(encoding='utf-8'))
+          print(data['project']['version'])
+          PY
+          )
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" != "v${VERSION}" ]]; then
+            echo "release tag ${GITHUB_REF_NAME} does not match package version ${VERSION}" >&2
+            exit 1
+          fi
+
+      - name: Install test and release tooling
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m pip install -e '.[dev]'
+
+      - name: Run full deterministic test suite
+        run: python -m pytest -q
+
+      - name: Build and validate Python distributions
+        run: |
+          rm -rf dist build
+          python -m build
+          python -m twine check dist/*
+
+      - name: Smoke the built wheel in a clean environment
+        run: |
+          python -m venv /tmp/rac-release
+          /tmp/rac-release/bin/python -m pip install --upgrade pip
+          /tmp/rac-release/bin/python -m pip install dist/*.whl
+          /tmp/rac-release/bin/rac validate examples/mapping-as-code-bridge/reconciliation.yaml
+          mkdir -p /tmp/rac-release-output
+          /tmp/rac-release/bin/rac run examples/mapping-as-code-bridge/reconciliation.yaml \
+            --evidence /tmp/rac-release-output/evidence.json \
+            --report /tmp/rac-release-output/evidence.md
+          python - <<'PY'
+          import json
+          evidence = json.load(open('/tmp/rac-release-output/evidence.json', encoding='utf-8'))
+          assert evidence['status'] == 'passed'
+          PY
+
+      - name: Build and smoke release container
+        run: |
+          docker build -t reconciliation-as-code:release-candidate .
+          mkdir -p build/container
+          docker run --rm -v "$PWD:/work" -w /work reconciliation-as-code:release-candidate \
+            run examples/mapping-as-code-bridge/reconciliation.yaml \
+            --evidence build/container/evidence.json \
+            --report build/container/evidence.md
+          python - <<'PY'
+          import json
+          assert json.load(open('build/container/evidence.json', encoding='utf-8'))['status'] == 'passed'
+          PY
+
+      - name: Upload verified Python distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: reconciliation-as-code-${{ steps.version.outputs.version }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  github-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: reconciliation-as-code-${{ needs.verify.outputs.version }}
+          path: dist
+      - name: Create GitHub Release from verified artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "Reconciliation as Code ${GITHUB_REF_NAME}" \
+            --generate-notes \
+            --verify-tag
+
+  container:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ needs.verify.outputs.version }}
+            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository }}:latest
+
+  pypi:
+    if: startsWith(github.ref, 'refs/tags/v') && vars.PYPI_PUBLISH_ENABLED == 'true'
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: reconciliation-as-code-${{ needs.verify.outputs.version }}
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
