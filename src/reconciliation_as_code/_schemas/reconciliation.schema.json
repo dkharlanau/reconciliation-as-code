@@ -3,122 +3,413 @@
   "$id": "https://github.com/dkharlanau/reconciliation-as-code/schema/reconciliation.schema.json",
   "title": "Reconciliation as Code specification",
   "type": "object",
-  "required": ["version", "reconciliation", "source", "target", "checks"],
+  "required": [
+    "version",
+    "reconciliation",
+    "source",
+    "target",
+    "checks"
+  ],
   "properties": {
-    "version": {"const": 1},
-    "object": {"type": "object", "properties": {"type": {"type": "string", "minLength": 1}}, "additionalProperties": true},
-    "reconciliation": {
-      "type": "object", "required": ["name"],
-      "properties": {"name": {"type": "string", "minLength": 1}, "description": {"type": "string"}},
+    "version": {
+      "const": 1
+    },
+    "object": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
       "additionalProperties": true
     },
-    "source": {"$ref": "#/$defs/endpoint"},
-    "target": {"$ref": "#/$defs/endpoint"},
-    "identity": {"$ref": "#/$defs/identity"},
-    "scopes": {"type": "object", "additionalProperties": {"$ref": "#/$defs/scope"}},
-    "checks": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/check"}},
-    "children": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/childCollection"}},
+    "reconciliation": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "source": {
+      "$ref": "#/$defs/endpoint"
+    },
+    "target": {
+      "$ref": "#/$defs/endpoint"
+    },
+    "identity": {
+      "$ref": "#/$defs/identity"
+    },
+    "scopes": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/scope"
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/check"
+      }
+    },
+    "children": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/childCollection"
+      }
+    },
     "exceptions": {
-      "type": "object", "required": ["file"],
-      "properties": {"file": {"type": "string", "minLength": 1}, "expiry_policy": {"enum": ["error", "warning"]}},
+      "type": "object",
+      "required": [
+        "file"
+      ],
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expiry_policy": {
+          "enum": [
+            "error",
+            "warning"
+          ]
+        }
+      },
       "additionalProperties": false
     },
     "materiality": {
       "type": "object",
       "properties": {
-        "default": {"$ref": "#/$defs/materialityPolicy"},
-        "fields": {"type": "object", "additionalProperties": {"$ref": "#/$defs/materialityPolicy"}},
-        "checks": {"type": "object", "additionalProperties": {"$ref": "#/$defs/materialityPolicy"}}
+        "default": {
+          "$ref": "#/$defs/materialityPolicy"
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/materialityPolicy"
+          }
+        },
+        "checks": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/materialityPolicy"
+          }
+        }
       },
       "additionalProperties": false
     },
     "evidence": {
       "type": "object",
       "properties": {
-        "detail_limit": {"type": "integer", "minimum": 0},
-        "sensitive_fields": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
-        "sensitive_value_mode": {"enum": ["mask", "hash", "omit"]},
-        "key_mode": {"enum": ["plain", "hash"]}
+        "detail_limit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sensitive_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "sensitive_value_mode": {
+          "enum": [
+            "mask",
+            "hash",
+            "omit"
+          ]
+        },
+        "key_mode": {
+          "enum": [
+            "plain",
+            "hash"
+          ]
+        }
       },
       "additionalProperties": true
+    },
+    "mapping_artifacts": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/mappingArtifact"
+      }
     }
   },
   "$defs": {
     "stringOrStringArray": {
       "oneOf": [
-        {"type": "string", "minLength": 1},
-        {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       ]
     },
     "predicate": {
-      "type": "object", "minProperties": 1,
+      "type": "object",
+      "minProperties": 1,
       "properties": {
-        "field": {"type": "string", "minLength": 1},
-        "op": {"enum": ["eq", "ne", "in", "not_in", "contains", "starts_with", "is_null", "not_null", "gt", "gte", "lt", "lte"]},
-        "value": {}, "normalize": {"type": "array", "items": {"type": "string"}},
-        "all": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/predicate"}},
-        "any": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/predicate"}},
-        "not": {"$ref": "#/$defs/predicate"}
+        "field": {
+          "type": "string",
+          "minLength": 1
+        },
+        "op": {
+          "enum": [
+            "eq",
+            "ne",
+            "in",
+            "not_in",
+            "contains",
+            "starts_with",
+            "is_null",
+            "not_null",
+            "gt",
+            "gte",
+            "lt",
+            "lte"
+          ]
+        },
+        "value": {},
+        "normalize": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "all": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/predicate"
+          }
+        },
+        "any": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/predicate"
+          }
+        },
+        "not": {
+          "$ref": "#/$defs/predicate"
+        }
       },
       "additionalProperties": false
     },
     "scope": {
-      "type": "object", "minProperties": 1,
-      "properties": {"source": {"$ref": "#/$defs/predicate"}, "target": {"$ref": "#/$defs/predicate"}},
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/predicate"
+        },
+        "target": {
+          "$ref": "#/$defs/predicate"
+        }
+      },
       "additionalProperties": false
     },
     "sqlInput": {
       "type": "object",
-      "required": ["connection", "query"],
+      "required": [
+        "connection",
+        "query"
+      ],
       "properties": {
-        "connection": {"type": "string", "minLength": 1},
-        "query": {"type": "string", "minLength": 1},
-        "params": {"type": "object"},
-        "max_rows": {"type": "integer", "minimum": 1},
-        "timeout_seconds": {"type": "number", "exclusiveMinimum": 0},
-        "chunk_size": {"type": "integer", "minimum": 1}
+        "connection": {
+          "type": "string",
+          "minLength": 1
+        },
+        "query": {
+          "type": "string",
+          "minLength": 1
+        },
+        "params": {
+          "type": "object"
+        },
+        "max_rows": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "timeout_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "chunk_size": {
+          "type": "integer",
+          "minimum": 1
+        }
       },
       "additionalProperties": false
     },
     "endpoint": {
       "type": "object",
-      "required": ["key"],
+      "required": [
+        "key"
+      ],
       "oneOf": [
-        {"required": ["file"], "not": {"required": ["sql"]}},
-        {"required": ["sql"], "not": {"required": ["file"]}}
+        {
+          "required": [
+            "file"
+          ],
+          "not": {
+            "required": [
+              "sql"
+            ]
+          }
+        },
+        {
+          "required": [
+            "sql"
+          ],
+          "not": {
+            "required": [
+              "file"
+            ]
+          }
+        }
       ],
       "properties": {
-        "file": {"type": "string", "minLength": 1},
-        "sql": {"$ref": "#/$defs/sqlInput"},
-        "key": {"$ref": "#/$defs/stringOrStringArray"},
-        "format": {"enum": ["csv", "xlsx", "xlsm", "parquet"]},
-        "delimiter": {"type": "string", "minLength": 1, "maxLength": 1}, "sheet": {"type": "string"},
-        "key_normalize": {"type": "array", "items": {"type": "string"}}, "filter": {"$ref": "#/$defs/predicate"}
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sql": {
+          "$ref": "#/$defs/sqlInput"
+        },
+        "key": {
+          "$ref": "#/$defs/stringOrStringArray"
+        },
+        "format": {
+          "enum": [
+            "csv",
+            "xlsx",
+            "xlsm",
+            "parquet"
+          ]
+        },
+        "delimiter": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1
+        },
+        "sheet": {
+          "type": "string"
+        },
+        "key_normalize": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "filter": {
+          "$ref": "#/$defs/predicate"
+        }
       },
       "additionalProperties": true
     },
     "identity": {
-      "type": "object", "required": ["crosswalk"],
+      "type": "object",
+      "required": [
+        "crosswalk"
+      ],
       "properties": {
         "crosswalk": {
-          "type": "object", "required": ["file", "source_key", "target_key"],
+          "type": "object",
+          "required": [
+            "file",
+            "source_key",
+            "target_key"
+          ],
           "properties": {
-            "file": {"type": "string", "minLength": 1},
-            "source_key": {"$ref": "#/$defs/stringOrStringArray"},
-            "target_key": {"$ref": "#/$defs/stringOrStringArray"},
-            "format": {"enum": ["csv", "xlsx", "xlsm"]},
-            "delimiter": {"type": "string", "minLength": 1, "maxLength": 1},
-            "sheet": {"type": "string"},
-            "source_normalize": {"type": "array", "items": {"type": "string"}},
-            "target_normalize": {"type": "array", "items": {"type": "string"}}
+            "file": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_key": {
+              "$ref": "#/$defs/stringOrStringArray"
+            },
+            "target_key": {
+              "$ref": "#/$defs/stringOrStringArray"
+            },
+            "format": {
+              "enum": [
+                "csv",
+                "xlsx",
+                "xlsm"
+              ]
+            },
+            "delimiter": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1
+            },
+            "sheet": {
+              "type": "string"
+            },
+            "source_normalize": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "target_normalize": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           },
           "additionalProperties": true
         },
         "aggregation": {
           "type": "object",
           "properties": {
-            "source": {"type": "object", "additionalProperties": {"enum": ["sum", "min", "max", "first", "require_equal", "set"]}},
-            "target": {"type": "object", "additionalProperties": {"enum": ["sum", "min", "max", "first", "require_equal", "set"]}}
+            "source": {
+              "type": "object",
+              "additionalProperties": {
+                "enum": [
+                  "sum",
+                  "min",
+                  "max",
+                  "first",
+                  "require_equal",
+                  "set"
+                ]
+              }
+            },
+            "target": {
+              "type": "object",
+              "additionalProperties": {
+                "enum": [
+                  "sum",
+                  "min",
+                  "max",
+                  "first",
+                  "require_equal",
+                  "set"
+                ]
+              }
+            }
           },
           "additionalProperties": false
         }
@@ -126,49 +417,246 @@
       "additionalProperties": true
     },
     "materialityPolicy": {
-      "type": "object", "minProperties": 1,
+      "type": "object",
+      "minProperties": 1,
       "properties": {
-        "severity": {"enum": ["error", "warning"]}, "critical": {"type": "boolean"},
-        "max_failures": {"type": "integer", "minimum": 0}, "max_failure_percentage": {"type": "number", "minimum": 0},
-        "max_absolute_difference": {"type": "number", "minimum": 0}, "max_percentage_difference": {"type": "number", "minimum": 0}
+        "severity": {
+          "enum": [
+            "error",
+            "warning"
+          ]
+        },
+        "critical": {
+          "type": "boolean"
+        },
+        "max_failures": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_failure_percentage": {
+          "type": "number",
+          "minimum": 0
+        },
+        "max_absolute_difference": {
+          "type": "number",
+          "minimum": 0
+        },
+        "max_percentage_difference": {
+          "type": "number",
+          "minimum": 0
+        }
       },
       "additionalProperties": false
     },
     "childEndpoint": {
       "allOf": [
-        {"$ref": "#/$defs/endpoint"},
-        {"type": "object", "required": ["file", "parent_key"], "properties": {"parent_key": {"$ref": "#/$defs/stringOrStringArray"}, "parent_key_normalize": {"type": "array", "items": {"type": "string"}}}}
+        {
+          "$ref": "#/$defs/endpoint"
+        },
+        {
+          "type": "object",
+          "required": [
+            "file",
+            "parent_key"
+          ],
+          "properties": {
+            "parent_key": {
+              "$ref": "#/$defs/stringOrStringArray"
+            },
+            "parent_key_normalize": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
       ]
     },
     "childCollection": {
-      "type": "object", "required": ["source", "target", "checks"],
+      "type": "object",
+      "required": [
+        "source",
+        "target",
+        "checks"
+      ],
       "properties": {
-        "description": {"type": "string"}, "source": {"$ref": "#/$defs/childEndpoint"}, "target": {"$ref": "#/$defs/childEndpoint"},
-        "duplicate_policy": {"enum": ["error", "warning"]},
-        "scopes": {"type": "object", "additionalProperties": {"$ref": "#/$defs/scope"}},
-        "checks": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/check"}}
+        "description": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/childEndpoint"
+        },
+        "target": {
+          "$ref": "#/$defs/childEndpoint"
+        },
+        "duplicate_policy": {
+          "enum": [
+            "error",
+            "warning"
+          ]
+        },
+        "scopes": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/scope"
+          }
+        },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/check"
+          }
+        }
       },
       "additionalProperties": true
     },
     "check": {
-      "type": "object", "required": ["type"],
+      "type": "object",
+      "required": [
+        "type"
+      ],
       "properties": {
-        "id": {"type": "string", "minLength": 1},
-        "type": {"enum": ["record_coverage", "field_match", "control_total", "row_count", "aggregate_match"]},
-        "severity": {"enum": ["error", "warning"]}, "scope": {"type": "string", "minLength": 1}, "when": {"$ref": "#/$defs/scope"},
-        "source": {"type": "string", "minLength": 1}, "target": {"type": "string", "minLength": 1},
-        "normalize": {"type": "array", "items": {"type": "string"}}, "map": {"type": "object"},
-        "numeric_tolerance": {"type": "number", "minimum": 0}, "percentage_tolerance": {"type": "number", "minimum": 0},
-        "date_tolerance_days": {"type": "number", "minimum": 0}, "null_semantics": {"enum": ["equal", "empty_is_null", "never_equal"]},
-        "max_mismatches": {"type": "integer", "minimum": 0}, "allow_unexpected": {"type": "boolean"}, "tolerance": {"type": "number", "minimum": 0},
-        "operation": {"enum": ["count", "distinct_count", "sum"]}, "materiality": {"$ref": "#/$defs/materialityPolicy"},
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "enum": [
+            "record_coverage",
+            "field_match",
+            "control_total",
+            "row_count",
+            "aggregate_match"
+          ]
+        },
+        "severity": {
+          "enum": [
+            "error",
+            "warning"
+          ]
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "when": {
+          "$ref": "#/$defs/scope"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "normalize": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "map": {
+          "type": "object"
+        },
+        "numeric_tolerance": {
+          "type": "number",
+          "minimum": 0
+        },
+        "percentage_tolerance": {
+          "type": "number",
+          "minimum": 0
+        },
+        "date_tolerance_days": {
+          "type": "number",
+          "minimum": 0
+        },
+        "null_semantics": {
+          "enum": [
+            "equal",
+            "empty_is_null",
+            "never_equal"
+          ]
+        },
+        "max_mismatches": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "allow_unexpected": {
+          "type": "boolean"
+        },
+        "tolerance": {
+          "type": "number",
+          "minimum": 0
+        },
+        "operation": {
+          "enum": [
+            "count",
+            "distinct_count",
+            "sum"
+          ]
+        },
+        "materiality": {
+          "$ref": "#/$defs/materialityPolicy"
+        },
         "group_by": {
-          "type": "object", "required": ["source", "target"],
-          "properties": {"source": {"$ref": "#/$defs/stringOrStringArray"}, "target": {"$ref": "#/$defs/stringOrStringArray"}},
+          "type": "object",
+          "required": [
+            "source",
+            "target"
+          ],
+          "properties": {
+            "source": {
+              "$ref": "#/$defs/stringOrStringArray"
+            },
+            "target": {
+              "$ref": "#/$defs/stringOrStringArray"
+            }
+          },
           "additionalProperties": false
+        },
+        "map_ref": {
+          "$ref": "#/$defs/mappingArtifactRef"
         }
       },
       "additionalProperties": true
+    },
+    "mappingArtifact": {
+      "type": "object",
+      "required": [
+        "file"
+      ],
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "mappingArtifactRef": {
+      "type": "object",
+      "required": [
+        "artifact",
+        "field"
+      ],
+      "properties": {
+        "artifact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "field": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": true

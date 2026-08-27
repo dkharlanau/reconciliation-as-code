@@ -11,6 +11,7 @@ from .errors import ReconciliationError
 from .pipeline_cli import add_pipeline_arguments, run_pipeline_command
 from .diff_cli import add_diff_arguments, run_diff_command
 from .identity import validate_identity_spec
+from .mapping_artifacts import resolve_mapping_artifacts
 from .profiling import generate_spec, inspect_dataset, render_generated_spec
 from .report import prepare_evidence, write_bundle, write_json, write_markdown
 from .runtime import run_reconciliation_runtime
@@ -120,6 +121,7 @@ def main(argv: list[str] | None = None) -> int:
         spec = load_spec(spec_path)
         validate_identity_spec(spec)
         if args.command == "validate":
+            resolve_mapping_artifacts(spec, spec_path.parent)
             print(f"valid: {spec_path} version={spec.get('version', 1)}")
             return 0
         raw_result = run_reconciliation_runtime(

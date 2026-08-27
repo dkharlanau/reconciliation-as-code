@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 from typing import Any
 
 import yaml
@@ -114,6 +115,27 @@ def _validate_when(check: dict[str, Any], check_id: str) -> None:
         validate_predicate(when["target"], f"checks.{check_id}.when.target")
 
 
+
+def _validate_mapping_artifacts(spec: dict[str, Any]) -> set[str]:
+    artifacts = spec.get("mapping_artifacts", {})
+    if artifacts is None:
+        return set()
+    if not isinstance(artifacts, dict):
+        raise SpecError("mapping_artifacts must be an object keyed by local artifact alias.")
+    aliases: set[str] = set()
+    for alias, config in artifacts.items():
+        if not isinstance(alias, str) or not alias:
+            raise SpecError("mapping_artifacts aliases must be non-empty strings.")
+        if not isinstance(config, dict):
+            raise SpecError(f"mapping_artifacts.{alias} must be an object.")
+        if not isinstance(config.get("file"), str) or not config.get("file"):
+            raise SpecError(f"mapping_artifacts.{alias}.file must be a non-empty string.")
+        sha256 = config.get("sha256")
+        if sha256 is not None and (not isinstance(sha256, str) or re.fullmatch(r"[0-9a-f]{64}", sha256) is None):
+            raise SpecError(f"mapping_artifacts.{alias}.sha256 must be a lowercase SHA-256 hex digest.")
+        aliases.add(alias)
+    return aliases
+
 def validate_spec(spec: dict[str, Any]) -> None:
     version = spec.get("version", 1)
     if version != 1:
@@ -132,6 +154,7 @@ def validate_spec(spec: dict[str, Any]) -> None:
         raise SpecError("source.key and target.key must contain the same number of fields.")
 
     scope_names = _validate_scopes(spec)
+    mapping_artifact_ids = _validate_mapping_artifacts(spec)
     checks = spec.get("checks")
     if not isinstance(checks, list) or not checks:
         raise SpecError("checks must be a non-empty list.")
@@ -159,6 +182,8 @@ def validate_spec(spec: dict[str, Any]) -> None:
         if scope is not None and (not isinstance(scope, str) or scope not in scope_names):
             raise SpecError(f"check {check_id!r}.scope must reference a declared scope.")
         _validate_when(check, check_id)
+        if check.get("map_ref") is not None and check_type != "field_match":
+            raise SpecError(f"check {check_id!r}.map_ref is supported only for field_match checks.")
 
         if check_type == "field_match":
             if not isinstance(check.get("source"), str) or not isinstance(check.get("target"), str):
@@ -172,6 +197,20 @@ def validate_spec(spec: dict[str, Any]) -> None:
             mapping = check.get("map")
             if mapping is not None and not isinstance(mapping, dict):
                 raise SpecError(f"field_match check {check_id!r}.map must be an object.")
+            map_ref = check.get("map_ref")
+            if map_ref is not None:
+                if mapping is not None:
+                    raise SpecError(f"field_match check {check_id!r} cannot define both map and map_ref.")
+                if not isinstance(map_ref, dict):
+                    raise SpecError(f"field_match check {check_id!r}.map_ref must be an object.")
+                artifact = map_ref.get("artifact")
+                field = map_ref.get("field")
+                if not isinstance(artifact, str) or artifact not in mapping_artifact_ids:
+                    raise SpecError(
+                        f"field_match check {check_id!r}.map_ref.artifact must reference a declared mapping_artifact."
+                    )
+                if not isinstance(field, str) or not field:
+                    raise SpecError(f"field_match check {check_id!r}.map_ref.field must be a non-empty string.")
             numeric_tolerance = check.get("numeric_tolerance")
             if numeric_tolerance is not None and (
                 not isinstance(numeric_tolerance, (int, float)) or numeric_tolerance < 0
