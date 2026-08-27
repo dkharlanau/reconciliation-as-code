@@ -1,0 +1,63 @@
+name: port-sap-starter-packs-main
+
+on:
+  push:
+    branches: [agent/port-sap-starter-packs-main]
+    paths:
+      - .github/workflows/port-sap-starter-packs.yml
+
+permissions:
+  contents: write
+
+jobs:
+  port-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/port-sap-starter-packs-main
+          fetch-depth: 0
+
+      - name: Fetch historical starter-pack branch
+        run: git fetch origin agent/sap-starter-packs
+
+      - name: Port only the still-missing product assets
+        run: |
+          git checkout origin/agent/sap-starter-packs -- \
+            .github/workflows/sap-starter-packs.yml \
+            docs/sap-native-validation.md \
+            examples/sap-s4hana \
+            tests/test_sap_starter_packs.py
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install current-main test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]'
+
+      - name: Run current test suite
+        run: python -m pytest -q
+
+      - name: Validate starter-pack specifications on current engine
+        run: |
+          rac validate examples/sap-s4hana/customer-to-bp/reconciliation.yaml
+          rac validate examples/sap-s4hana/supplier-to-bp/reconciliation.yaml
+          rac validate examples/sap-s4hana/material-product/reconciliation.yaml
+          rac validate examples/sap-s4hana/finance-inventory-balances/finance-reconciliation.yaml
+          rac validate examples/sap-s4hana/finance-inventory-balances/inventory-reconciliation.yaml
+
+      - name: Execute starter-pack regression test
+        run: python -m pytest -q tests/test_sap_starter_packs.py
+
+      - name: Commit verified port
+        run: |
+          rm .github/workflows/port-sap-starter-packs.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Port SAP S/4HANA starter packs onto current main"
+          git push origin HEAD:agent/port-sap-starter-packs-main
