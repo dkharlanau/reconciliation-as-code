@@ -1,0 +1,44 @@
+version: 1
+
+reconciliation:
+  name: SAP S/4HANA finance balance reconciliation
+  description: Record and grouped control-total validation by company code and currency.
+
+source:
+  file: legacy_finance.csv
+  key: [COMPANY_CODE, GL_ACCOUNT, CURRENCY]
+  key_normalize: [trim, strip_leading_zeros]
+
+target:
+  file: s4_finance.csv
+  key: [COMPANY_CODE, GL_ACCOUNT, CURRENCY]
+  key_normalize: [trim, strip_leading_zeros]
+
+checks:
+  - id: coverage
+    type: record_coverage
+
+  - id: amount-by-account
+    type: field_match
+    source: AMOUNT
+    target: AMOUNT
+    numeric_tolerance: 0.01
+
+  - id: amount-by-company-currency
+    type: aggregate_match
+    operation: sum
+    source: AMOUNT
+    target: AMOUNT
+    group_by:
+      source: [COMPANY_CODE, CURRENCY]
+      target: [COMPANY_CODE, CURRENCY]
+    tolerance: 0.01
+
+  - id: grand-total
+    type: control_total
+    source: AMOUNT
+    target: AMOUNT
+    tolerance: 0.01
+
+evidence:
+  detail_limit: 100
