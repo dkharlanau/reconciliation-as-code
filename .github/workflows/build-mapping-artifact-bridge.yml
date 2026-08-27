@@ -1,0 +1,56 @@
+name: build-mapping-artifact-bridge
+
+on:
+  push:
+    branches:
+      - agent/mapping-artifact-bridge
+    paths:
+      - .github/workflows/build-mapping-artifact-bridge.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/mapping-artifact-bridge
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install current development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Apply bridge implementation
+        run: python scripts/apply_mapping_artifact_bridge.py
+      - name: Run focused bridge tests
+        run: python -m pytest -q tests/test_mapping_artifacts.py
+      - name: Run full current test suite
+        run: python -m pytest -q
+      - name: Validate and run bridge example
+        run: |
+          rac validate examples/mapping-as-code-bridge/reconciliation.yaml
+          rac run examples/mapping-as-code-bridge/reconciliation.yaml --evidence /tmp/mapping-evidence.json --report /tmp/mapping-evidence.md
+          python - <<'PY'
+          import json
+          evidence = json.load(open('/tmp/mapping-evidence.json', encoding='utf-8'))
+          assert evidence['status'] == 'passed'
+          item = evidence['inputs']['mapping:customer-country']
+          assert item['mapping_id'] == 'country-iso2-to-iso3'
+          assert item['fields'] == ['customer-country']
+          PY
+      - name: Verify published and bundled schemas stay identical
+        run: cmp schema/reconciliation.schema.json src/reconciliation_as_code/_schemas/reconciliation.schema.json
+      - name: Commit verified implementation
+        run: |
+          rm .github/workflows/build-mapping-artifact-bridge.yml
+          rm scripts/apply_mapping_artifact_bridge.py
+          find . -type d -name '*.egg-info' -prune -exec rm -rf {} +
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: consume pinned Mapping as Code value maps"
+          git push origin HEAD:agent/mapping-artifact-bridge
