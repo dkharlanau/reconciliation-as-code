@@ -15,6 +15,7 @@
     "source": {"$ref": "#/$defs/endpoint"},
     "target": {"$ref": "#/$defs/endpoint"},
     "identity": {"$ref": "#/$defs/identity"},
+    "mapping_artifacts": {"type": "object", "additionalProperties": {"$ref": "#/$defs/mappingArtifact"}},
     "scopes": {"type": "object", "additionalProperties": {"$ref": "#/$defs/scope"}},
     "checks": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/check"}},
     "children": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/childCollection"}},
@@ -125,6 +126,16 @@
       },
       "additionalProperties": true
     },
+    "mappingArtifact": {
+      "type": "object", "required": ["file"],
+      "properties": {"file": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+      "additionalProperties": false
+    },
+    "mappingArtifactRef": {
+      "type": "object", "required": ["artifact", "field"],
+      "properties": {"artifact": {"type": "string", "minLength": 1}, "field": {"type": "string", "minLength": 1}},
+      "additionalProperties": false
+    },
     "materialityPolicy": {
       "type": "object", "minProperties": 1,
       "properties": {
@@ -157,7 +168,7 @@
         "type": {"enum": ["record_coverage", "field_match", "control_total", "row_count", "aggregate_match"]},
         "severity": {"enum": ["error", "warning"]}, "scope": {"type": "string", "minLength": 1}, "when": {"$ref": "#/$defs/scope"},
         "source": {"type": "string", "minLength": 1}, "target": {"type": "string", "minLength": 1},
-        "normalize": {"type": "array", "items": {"type": "string"}}, "map": {"type": "object"},
+        "normalize": {"type": "array", "items": {"type": "string"}}, "map": {"type": "object"}, "map_ref": {"$ref": "#/$defs/mappingArtifactRef"},
         "numeric_tolerance": {"type": "number", "minimum": 0}, "percentage_tolerance": {"type": "number", "minimum": 0},
         "date_tolerance_days": {"type": "number", "minimum": 0}, "null_semantics": {"enum": ["equal", "empty_is_null", "never_equal"]},
         "max_mismatches": {"type": "integer", "minimum": 0}, "allow_unexpected": {"type": "boolean"}, "tolerance": {"type": "number", "minimum": 0},
