@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - agent/mapping-artifact-bridge
-    paths:
-      - .github/workflows/build-mapping-artifact-bridge.yml
 
 permissions:
   contents: write
