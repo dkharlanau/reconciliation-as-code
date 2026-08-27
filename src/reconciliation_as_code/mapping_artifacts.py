@@ -119,7 +119,12 @@ def resolve_mapping_artifacts(
             raise DataError(
                 f"Mapping as Code lookup {reference!r} referenced by field {field_id!r} is missing or ambiguous."
             )
+        # The public contract uses map_ref; the deterministic engine already knows how
+        # to evaluate an inline map. Materialize the effective map and remove map_ref
+        # from the execution copy so ordinary validation cannot mistake derived state
+        # for a user-authored duplicate mapping definition.
         check["map"] = copy.deepcopy(value_map)
+        check.pop("map_ref", None)
         evidence[alias].setdefault("fields", []).append(field_id)
 
     for record in evidence.values():
