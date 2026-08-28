@@ -1,0 +1,119 @@
+{
+  "base_url": "https://dkharlanau.github.io/reconciliation-as-code/",
+  "use_cases": [
+    {
+      "slug": "sap-s4hana-data-migration-reconciliation",
+      "title": "SAP S/4HANA data migration reconciliation",
+      "description": "A practical control pattern for proving that in-scope SAP migration data reached S/4HANA with expected identity, values and child-object coverage.",
+      "problem": "Migration teams need more than record counts: changed technical IDs, repeating child data and transformed business values must still reconcile back to the intended source objects.",
+      "spec": "examples/sap-s4hana/customer-to-bp/reconciliation.yaml",
+      "inputs": ["synthetic legacy Customer export", "synthetic S/4 Business Partner export", "explicit Customer-to-BP identity crosswalk"],
+      "controls": ["source/target coverage", "changed-ID identity mapping", "field/value transformation checks", "address and sales-area child collection reconciliation", "business-object failure roll-up"],
+      "command": "rac run examples/sap-s4hana/customer-to-bp/reconciliation.yaml --evidence build/customer-bp.json --report build/customer-bp.md --bundle build/customer-bp-bundle --no-fail-on-diff",
+      "outputs": ["canonical JSON evidence", "reviewable Markdown report", "offline evidence bundle with CSV/XLSX/HTML details"],
+      "limitations": "The mappings and SAP fields are synthetic placeholders. Replace them with project-approved scope, identity and transformation rules; do not treat the example as SAP standard truth.",
+      "repo_guide": "examples/sap-s4hana/customer-to-bp/README.md"
+    },
+    {
+      "slug": "sap-customer-business-partner-reconciliation",
+      "title": "SAP Customer to Business Partner reconciliation",
+      "description": "Reconcile legacy SAP Customer data to S/4HANA Business Partner when keys change and addresses or sales areas repeat.",
+      "problem": "A Customer-to-BP migration is not a flat row comparison: the BP can receive a new technical ID while addresses, sales areas and other child collections still need object-level assurance.",
+      "spec": "examples/customer-bp-hierarchy/reconciliation.yaml",
+      "inputs": ["source customer/root data", "target BP/root data", "hierarchical child collections"],
+      "controls": ["root identity", "hierarchical child checks", "object-path discrepancy attribution", "root-level failure roll-up"],
+      "command": "rac run examples/customer-bp-hierarchy/reconciliation.yaml --evidence build/hierarchy-evidence.json --report build/hierarchy-evidence.md --bundle build/hierarchy-bundle --no-fail-on-diff",
+      "outputs": ["object-level evidence", "child discrepancy paths", "business-review bundle"],
+      "limitations": "The fixture proves the reconciliation pattern, not a universal SAP Customer/BP data model. Project scope and child identities must be defined explicitly.",
+      "repo_guide": "examples/customer-bp-hierarchy/reconciliation.yaml"
+    },
+    {
+      "slug": "source-to-target-data-reconciliation",
+      "title": "Source-to-target data reconciliation",
+      "description": "Version the source-to-target comparison logic instead of rebuilding one-off SQL or spreadsheets for each migration wave.",
+      "problem": "Teams need reproducible evidence that source records arrived at the target with the right business keys and values, including missing, unexpected and mismatched rows.",
+      "spec": "examples/customer-migration/reconciliation.yaml",
+      "inputs": ["legacy.csv", "s4.csv", "YAML reconciliation contract"],
+      "controls": ["business-key match", "missing/unexpected coverage", "normalized field comparison", "control totals"],
+      "command": "rac run examples/customer-migration/reconciliation.yaml --evidence build/evidence.json --report build/evidence.md --bundle build/evidence-bundle --no-fail-on-diff",
+      "outputs": ["pass/fail evidence", "missing/unexpected records", "field mismatch details", "input/spec fingerprints"],
+      "limitations": "This small CSV example is intentionally simple. Large flat datasets should use the DuckDB path; changed identities or hierarchy require the corresponding contracts.",
+      "repo_guide": "examples/customer-migration/reconciliation.yaml"
+    },
+    {
+      "slug": "csv-file-data-reconciliation",
+      "title": "CSV file data reconciliation",
+      "description": "Compare two CSV extracts with deterministic keys, tolerances and evidence that can be rerun in CI or cutover rehearsal.",
+      "problem": "File-based reconciliation often becomes a manual Excel task with no stable definition of what counts as a match or acceptable difference.",
+      "spec": "examples/scoped-controls/reconciliation.yaml",
+      "inputs": ["source CSV", "target CSV", "scoped reconciliation rules"],
+      "controls": ["scoped row checks", "aggregate checks", "field mismatches", "bounded evidence details"],
+      "command": "rac run examples/scoped-controls/reconciliation.yaml --evidence build/scoped-evidence.json --report build/scoped-evidence.md --bundle build/scoped-bundle --no-fail-on-diff",
+      "outputs": ["JSON/Markdown evidence", "HTML/XLSX evidence", "CSV discrepancy files"],
+      "limitations": "CSV is an input transport, not the business model. Keys, scopes, normalizations and acceptance rules still need project ownership.",
+      "repo_guide": "examples/scoped-controls/reconciliation.yaml"
+    },
+    {
+      "slug": "data-migration-reconciliation-checklist",
+      "title": "Data migration reconciliation checklist as executable evidence",
+      "description": "Turn a migration reconciliation checklist into executable controls: scope, keys, counts, values, tolerances, exceptions and retained evidence.",
+      "problem": "A checklist can say what should be checked, but a release decision needs repeatable execution and evidence tied to exact inputs and rules.",
+      "spec": "examples/materiality/reconciliation.yaml",
+      "inputs": ["source/target extracts", "critical-field rules", "materiality thresholds"],
+      "controls": ["scope and record coverage", "critical-field mismatch policy", "materiality thresholds", "evidence fingerprints"],
+      "command": "rac run examples/materiality/reconciliation.yaml --evidence build/materiality-evidence.json --report build/materiality-evidence.md --bundle build/materiality-bundle --no-fail-on-diff",
+      "outputs": ["check-by-check outcome", "critical failure count", "reviewable discrepancy evidence"],
+      "limitations": "Materiality is a business policy, not an algorithmic default. Thresholds and critical fields must be approved for the migration scope.",
+      "repo_guide": "examples/materiality/reconciliation.yaml"
+    },
+    {
+      "slug": "cutover-reconciliation-and-signoff",
+      "title": "Cutover reconciliation and sign-off evidence",
+      "description": "Use governed reconciliation evidence to support cutover readiness without hiding accepted differences or rebuilding sign-off spreadsheets.",
+      "problem": "Cutover teams need to distinguish true failures from explicitly accepted exceptions while preserving who accepted what and whether the exception is still valid.",
+      "spec": "examples/accepted-exceptions/reconciliation.yaml",
+      "inputs": ["source/target extracts", "reconciliation contract", "accepted-exceptions.yaml"],
+      "controls": ["raw discrepancy detection", "governed exception fingerprint", "owner/reference/expiry", "passed outcome only after valid exception policy"],
+      "command": "rac run examples/accepted-exceptions/reconciliation.yaml --evidence build/accepted-evidence.json --report build/accepted-evidence.md --bundle build/accepted-bundle",
+      "outputs": ["raw and accepted discrepancy state", "exception provenance", "cutover-reviewable bundle"],
+      "limitations": "An accepted exception is not proof that a discrepancy is harmless. Approval authority and expiry rules belong to the project governance model.",
+      "repo_guide": "examples/accepted-exceptions/reconciliation.yaml"
+    },
+    {
+      "slug": "sap-mdg-replication-reconciliation",
+      "title": "SAP MDG replication reconciliation pattern",
+      "description": "Apply the same current-authority versus target-state controls to an MDG replication extract and its S/4HANA target evidence.",
+      "problem": "A technically successful replication message does not by itself prove that the current governed master-data state exists at the target with the correct business identity.",
+      "spec": "examples/sap-s4hana/customer-to-bp/reconciliation.yaml",
+      "inputs": ["MDG-approved source export adapted to the starter schema", "target S/4 BP export", "explicit source-to-target business identity mapping"],
+      "controls": ["in-scope governed-object coverage", "canonical identity/crosswalk", "critical master-data fields", "child collection coverage", "fresh target-state evidence"],
+      "command": "rac run examples/sap-s4hana/customer-to-bp/reconciliation.yaml --evidence build/mdg-target-evidence.json --report build/mdg-target-evidence.md --bundle build/mdg-target-bundle --no-fail-on-diff",
+      "outputs": ["source/target business-state evidence", "identity-aware discrepancies", "review bundle"],
+      "limitations": "The repository does not claim an embedded MDG connector here. The page shows how to adapt the runnable Customer/BP starter to MDG-approved and target exports; message causality/monitoring evidence should be handled by the integration/operations layer.",
+      "repo_guide": "examples/sap-s4hana/customer-to-bp/README.md"
+    },
+    {
+      "slug": "control-totals-by-company-country-unit",
+      "title": "Control totals by company code, country or business unit",
+      "description": "Reconcile financial or inventory totals by organizational dimensions instead of relying only on row-level equality.",
+      "problem": "A migration can have the expected total row count while still moving value between company codes, countries, plants or other business dimensions.",
+      "spec": "examples/sap-s4hana/finance-inventory-balances/finance-reconciliation.yaml",
+      "inputs": ["synthetic finance source/target balances", "organizational dimensions", "aggregate tolerance rules"],
+      "controls": ["aggregate totals", "group-by business dimension", "numeric tolerances", "mismatch evidence by group"],
+      "command": "rac run examples/sap-s4hana/finance-inventory-balances/finance-reconciliation.yaml --evidence build/finance-evidence.json --report build/finance-evidence.md --bundle build/finance-bundle --no-fail-on-diff",
+      "outputs": ["aggregate control results", "dimension-level mismatches", "fingerprinted evidence bundle"],
+      "limitations": "The finance fixture is synthetic. Real reconciliation must define authoritative currencies, valuation dates, organizational scope and tolerances before totals can support sign-off.",
+      "repo_guide": "examples/sap-s4hana/finance-inventory-balances/README.md"
+    }
+  ],
+  "faq": [
+    ["What is reconciliation in a data migration?", "It is the controlled comparison of source intent and target business state: coverage, identity, fields, aggregates and accepted exceptions, with enough evidence to reproduce the decision."],
+    ["Is row count enough for migration reconciliation?", "No. Counts can match while keys, values, child collections or organizational totals are wrong. Counts are one control among several."],
+    ["How should changed SAP technical IDs be reconciled?", "Use an explicit identity crosswalk or governed identity relation. Do not assume legacy Customer and target Business Partner numbers are equal."],
+    ["Can reconciliation evidence be used for cutover sign-off?", "Yes, as one evidence input. The release policy still needs explicit ownership, accepted-exception governance and scope completeness."],
+    ["Does Reconciliation as Code move data?", "No. It evaluates and evidences source/target state. Extraction, transformation and loading stay in the systems and tools that own those operations."],
+    ["Can it compare SQL sources instead of CSV files?", "Yes. SQLite and PostgreSQL query inputs are supported through runtime connection references; credentials are not copied into the YAML or evidence."],
+    ["How does it handle millions of records?", "The DuckDB backend performs joins, filters and aggregates in-engine and returns bounded evidence; CI includes a generated one-million-row reconciliation benchmark."],
+    ["Does a green result mean production data is correct?", "Only within the declared scope and policy. A result cannot prove fields, records or business rules that the reconciliation contract did not include."]
+  ]
+}
