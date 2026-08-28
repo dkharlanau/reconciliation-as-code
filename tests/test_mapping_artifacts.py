@@ -27,6 +27,7 @@ def test_mapping_as_code_value_map_is_reused_with_provenance():
     assert mapping_input["path"] == "customer.mapping.yaml"
     assert mapping_input["sha256"] == "39e87e7039053c75e16402b5a0a7d610bc04ca919bacce96064c2c0034169ade"
     assert mapping_input["mapping_id"] == "country-iso2-to-iso3"
+    assert mapping_input["schema_version"] == "0.1"
     assert mapping_input["fields"] == ["customer-country"]
 
 
@@ -67,3 +68,33 @@ def test_mapping_artifact_unknown_field_fails_closed():
 
     with pytest.raises(DataError, match="unknown Mapping as Code field"):
         run_reconciliation_runtime(spec, base_dir=EXAMPLE)
+
+
+def test_mapping_artifact_future_schema_version_fails_closed(tmp_path):
+    for name in ("source.csv", "target.csv", "customer.mapping.yaml"):
+        (tmp_path / name).write_bytes((EXAMPLE / name).read_bytes())
+    spec = yaml.safe_load((EXAMPLE / "reconciliation.yaml").read_text(encoding="utf-8"))
+    del spec["mapping_artifacts"]["customer-country"]["sha256"]
+
+    mapping_path = tmp_path / "customer.mapping.yaml"
+    mapping = yaml.safe_load(mapping_path.read_text(encoding="utf-8"))
+    mapping["schema_version"] = "9.0"
+    mapping_path.write_text(yaml.safe_dump(mapping, sort_keys=False), encoding="utf-8")
+
+    with pytest.raises(DataError, match="Unsupported Mapping as Code schema_version '9.0'"):
+        run_reconciliation_runtime(spec, base_dir=tmp_path)
+
+
+def test_mapping_artifact_missing_schema_version_fails_closed(tmp_path):
+    for name in ("source.csv", "target.csv", "customer.mapping.yaml"):
+        (tmp_path / name).write_bytes((EXAMPLE / name).read_bytes())
+    spec = yaml.safe_load((EXAMPLE / "reconciliation.yaml").read_text(encoding="utf-8"))
+    del spec["mapping_artifacts"]["customer-country"]["sha256"]
+
+    mapping_path = tmp_path / "customer.mapping.yaml"
+    mapping = yaml.safe_load(mapping_path.read_text(encoding="utf-8"))
+    del mapping["schema_version"]
+    mapping_path.write_text(yaml.safe_dump(mapping, sort_keys=False), encoding="utf-8")
+
+    with pytest.raises(DataError, match="Unsupported Mapping as Code schema_version None"):
+        run_reconciliation_runtime(spec, base_dir=tmp_path)
