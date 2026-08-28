@@ -10,6 +10,9 @@ import yaml
 from .errors import DataError
 
 
+SUPPORTED_MAPPING_SCHEMA_VERSIONS = {"0.1"}
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -27,6 +30,15 @@ def _load_mapping_artifact(path: Path) -> dict[str, Any]:
         raise DataError(f"Invalid Mapping as Code YAML in {path}: {exc}") from exc
     if not isinstance(raw, dict):
         raise DataError(f"Mapping artifact root must be an object: {path}")
+
+    schema_version = raw.get("schema_version")
+    if schema_version not in SUPPORTED_MAPPING_SCHEMA_VERSIONS:
+        supported = ", ".join(sorted(SUPPORTED_MAPPING_SCHEMA_VERSIONS))
+        raise DataError(
+            f"Unsupported Mapping as Code schema_version {schema_version!r} in {path}. "
+            f"Supported versions: {supported}."
+        )
+
     mapping = raw.get("mapping")
     if not isinstance(mapping, dict) or not isinstance(mapping.get("id"), str) or not mapping.get("id"):
         raise DataError(f"Mapping artifact requires mapping.id: {path}")
