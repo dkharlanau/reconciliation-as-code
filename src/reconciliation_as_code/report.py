@@ -308,7 +308,9 @@ def _append_sheet(sheet: Any, headers: list[str], rows: list[dict[str, Any]]) ->
     if sheet.max_row >= 1:
         sheet.auto_filter.ref = sheet.dimensions
     for cell in sheet[1]:
-        cell.font = cell.font.copy(bold=True)
+        font = copy.copy(cell.font)
+        font.bold = True
+        cell.font = font
     for column_cells in sheet.columns:
         max_length = max(len(str(cell.value or "")) for cell in column_cells)
         sheet.column_dimensions[column_cells[0].column_letter].width = min(max(max_length + 2, 10), 50)

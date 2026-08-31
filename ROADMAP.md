@@ -1,93 +1,88 @@
 # Roadmap
 
-## 0.1 — Working MVP ✅
+This roadmap distinguishes shipped behavior from planned work. A checked item is present in the repository with tests or a runnable example; it is not a claim that the project is production-ready for every enterprise environment.
 
-- YAML reconciliation specification
-- CSV source/target adapter
-- optional Excel adapter
-- single/composite business keys
-- key normalization and duplicate detection
-- record coverage
-- mapping-aware field comparison
-- numeric tolerances
-- control totals and row counts
-- warning/error severity
-- evidence JSON + Markdown
-- input/spec SHA-256 fingerprints
-- CLI exit codes for CI gates
-- example, tests, JSON Schema, GitHub Actions
+## 0.1 — Working MVP — delivered
 
-## 0.2 — Migration controls beta — in progress
+- YAML reconciliation specification and published JSON Schemas
+- CSV source/target adapter, with optional Excel support
+- single/composite business keys, normalization, and duplicate detection
+- record coverage, field comparison, row counts, totals, and grouped controls
+- explicit mappings, null rules, and numeric/date/percentage tolerances
+- deterministic evidence JSON and Markdown with SHA-256 provenance
+- CI-oriented exit codes, examples, and tests
 
-Completed:
+## 0.2 — Enterprise migration semantics — delivered
 
-- stable specification and evidence compatibility contract
-- `rac inspect` and `rac init` guided onboarding
-- source/target scopes and deterministic predicates
-- conditional checks
-- aggregate-by-dimension controls
-- date and percentage tolerances
-- configurable null semantics
-- audit-grade evidence bundle: JSON, Markdown, HTML, XLSX, CSV
-- PII masking/hash/omit controls
-
-Next:
-
-- hierarchical enterprise-object reconciliation
-- identity crosswalks and changed-ID handling
-- 1:N and N:1 merge/split reconciliation
+- guided `rac inspect` and `rac init` onboarding
+- scopes, conditional checks, and aggregate-by-dimension controls
+- hierarchical enterprise objects and object-level failure roll-up
+- identity crosswalks with deterministic 1:1, 1:N, and N:1 handling
 - versioned accepted-exception governance
 - materiality and critical-field policies
+- evidence bundles with offline HTML, XLSX, CSV detail files, and value masking/hash/omit controls
 
-## 0.3 — Scale and enterprise integration
+## 0.3 — Scale and integration — active
 
-- DuckDB execution backend
-- benchmarks for 100k / 1M / 5M rows
-- JSON / JSONL and Parquet adapters
-- SQL adapter
-- plugin interface for source/target adapters
-- reusable rule packs
-- external mapping-file references
-- JUnit/SARIF-like CI output
-- signed run manifest
-- baseline vs current reconciliation diff
+Delivered:
 
-## 0.4 — SAP migration wedge
+- DuckDB execution backend for supported flat controls
+- reproducible 100k / 1M / 5M benchmark tooling and a required 1M-row CI run
+- CSV and Parquet support on DuckDB
+- SQLite and PostgreSQL query adapters using runtime connection references
+- pinned Mapping as Code lookup-artifact integration
+- multi-stage pipeline reconciliation
+- retained-evidence rehearsal diff
 
-- Customer → Business Partner starter pack
-- Supplier → Business Partner starter pack
+Remaining:
+
+- first-class JSON and JSONL adapters
+- documented plugin interface for source/target adapters and checks
+- reusable rule-pack packaging
+- JUnit or SARIF-style CI output
+- optional externally signed run manifests
+
+## 0.4 — SAP migration wedge — delivered
+
+- Customer to Business Partner starter pack
+- Supplier to Business Partner starter pack
 - Material master starter pack
-- finance/inventory balance control pack
-- Mapping as Code interoperability
+- finance and inventory balance controls
+- Mapping as Code interoperability example
 - realistic multi-stage migration example
 
-## 0.5 — Distribution and discoverability
+The packs are deterministic reference implementations with synthetic fixtures. They do not replace project-specific scope, mappings, business approval, or validation in a target SAP landscape.
 
-- PyPI / pipx distribution
-- Docker image
-- reusable GitHub Action
-- search-oriented GitHub Pages documentation
-- repository trust/discoverability metadata
-- screenshots and runnable example gallery
+## 0.5 — Distribution and discoverability — active
+
+Delivered:
+
+- source-installable Python package with sdist/wheel verification
+- minimal Docker CLI image
+- reusable composite GitHub Action
+- GitHub Pages product and documentation entry point
+- repository security, contribution, agent, and package metadata
+- runnable example catalog
+
+Remaining:
+
+- first immutable public version tag and GitHub Release
+- confirmed GHCR image publication from that tag
+- optional PyPI publication after Trusted Publisher configuration
+- broader search-oriented scenario documentation
 
 ## 1.0 — Portable migration assurance layer
 
-- compatibility-stable spec/evidence model
-- enterprise hierarchy and identity transformations
-- scalable file/SQL execution
-- governed evidence and accepted exceptions
-- run-to-run rehearsal diff
-- SAP reference packs
-- documented extension/plugin model
+Before a 1.0 claim, the project should have a compatibility-stable specification/evidence model, an explicit extension boundary, repeatable distribution, and evidence from independent usage. Production suitability remains an operator decision shaped by data sensitivity, access controls, review, and the surrounding delivery process.
 
-## Later — Connected “as-code” toolkit
+## Later — Connected as-code toolkit
 
-- consume Mapping as Code artifacts
-- link transformation steps to Transformation Graph
-- bind checks to Interface as Code contracts
-- publish reconciliation evidence to Project Evidence Graph
-- agent-readable run summaries and remediation context
-- MCP interface after deterministic core is mature
+- consume additional governed Mapping as Code artifacts
+- link transformation stages to Transformation Graph
+- bind relevant checks to Interface as Code contracts
+- publish reconciliation evidence into a project evidence model
+- provide agent-readable run summaries and remediation context
+- consider an MCP interface only after the deterministic core and authority model are stable
 
 ## Non-goals
 

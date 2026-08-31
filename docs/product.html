@@ -1,12 +1,119 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reconciliation as Code — Prove transformed data</title><meta name="description" content="Reconciliation as Code turns data assurance into reusable rulepacks with explainable outcomes, policy, provenance, and evidence."><link rel="canonical" href="https://dkharlanau.github.io/reconciliation-as-code/"><link rel="stylesheet" href="https://dkharlanau.github.io/assets/toolkit-pages.css"></head><body><header class="wrap top"><a class="brand" href="https://dkharlanau.github.io/products/">ENTERPRISE TRANSFORMATION TOOLKIT</a><nav><a href="#why">Why</a><a href="#how">How</a><a href="#ecosystem">Ecosystem</a><a href="https://github.com/dkharlanau/reconciliation-as-code">GitHub ↗</a></nav></header><main>
-<section class="wrap hero"><div class="product-mark">08 / Assurance & execution</div><h1>Reconciliation as Code</h1><p class="lead">Turn migration and transformation checks into reusable rulepacks that say what was compared, what passed, what failed, what was waived, and which evidence supports the decision.</p><div class="actions"><a class="btn primary" href="https://github.com/dkharlanau/reconciliation-as-code#quick-start">Run an example</a><a class="btn" href="https://github.com/dkharlanau/reconciliation-as-code/tree/main/docs">Read technical docs</a></div></section>
-<div class="wrap visual"><div class="visual-head"><span>Assurance chain</span><span>Comparison → decision → evidence</span></div><div class="visual-body"><div class="flow" style="--steps:5"><div class="node"><small>01</small><b>Sources</b><span>Extracts or datasets</span></div><div class="node"><small>02</small><b>Rulepack</b><span>Counts, rows, pairs, CDC</span></div><div class="node"><small>03</small><b>Policy</b><span>Profiles, suites, waivers</span></div><div class="node"><small>04</small><b>Decision</b><span>Pass, fail, explain</span></div><div class="node"><small>05</small><b>Evidence</b><span>Provenance and integrity</span></div></div></div><div class="visual-note">A green status is useful only when a reviewer can reconstruct why it is green.</div></div>
-<section class="section" id="why"><div class="wrap"><div class="section-head"><h2>Why it exists</h2><p>Project reconciliation is often a collection of one-off SQL, spreadsheets, screenshots, and manual sign-offs. That makes repeatability and auditability harder exactly when data risk is highest.</p></div><div class="cards"><div class="card"><span class="n">01</span><h3>Codify the check</h3><p>Rulepacks make comparison logic reusable across runs, environments, migration waves, and teams.</p></div><div class="card"><span class="n">02</span><h3>Separate policy from data</h3><p>Profiles, scoped suites, waivers, and release policy make acceptance logic explicit.</p></div><div class="card"><span class="n">03</span><h3>Preserve provenance</h3><p>Evidence bundles, integrity checks, signatures, trends, and lineage let teams prove what they evaluated.</p></div></div></div></section>
-<section class="section" id="how"><div class="wrap"><div class="section-head"><h2>From raw comparison to release decision</h2><p>The framework supports simple count checks and richer row, pair, multi-source, and CDC assurance without changing the basic operating model.</p></div><div class="example"><div><h3>Typical loop</h3><pre>rac validate &lt;rulepack.yaml&gt;
-rac inspect &lt;rulepack.yaml&gt;
-rac run &lt;rulepack.yaml&gt;
-# keep structured automation output
-# verify evidence / trust before release use</pre></div><div><h3>What the result carries</h3><p>Rule results, scopes, tolerances, waivers, provenance, integrity metadata, and evidence can travel together instead of being reconstructed from a test folder later.</p><div class="boundary">Not a data migration engine. It evaluates and evidences outcomes; it does not move or transform the source data itself.</div></div></div></div></section>
-<section class="section ecosystem" id="ecosystem"><div class="wrap"><div class="section-head"><h2>Where it connects</h2><p>Reconciliation becomes stronger when it can reference the transformation contract and feed assurance state into cutover or project evidence.</p></div><div class="links"><a class="link-card" href="https://dkharlanau.github.io/mapping-as-code/"><b>Mapping as Code →</b><span>Reference the transformation intent being assured.</span></a><a class="link-card" href="https://dkharlanau.github.io/cutover-graph/"><b>Cutover Graph →</b><span>Use reconciliation evidence as a readiness dependency.</span></a><a class="link-card" href="https://dkharlanau.github.io/project-evidence-graph/"><b>Project Evidence Graph →</b><span>Connect release claims to the evidence that supports them.</span></a></div></div></section>
-<section class="section agent"><div class="wrap"><div class="product-mark">Agent entry point</div><div class="section-head"><h2>Automation should not hide the judgment.</h2><p>Agents can validate, run, and summarize rulepacks, but policy, waivers, and trust remain explicit inputs. Structured stdout and separate diagnostics keep automation dependable.</p></div><div class="cards"><div class="card"><span class="n">DISCOVER</span><h3>Read capabilities</h3><p><a href="agent-manifest.json">docs/agent-manifest.json</a> tells an agent what it can safely evaluate.</p></div><div class="card"><span class="n">RUN</span><h3>Use deterministic checks</h3><p>Validate first, execute the requested rulepack, and preserve machine-readable results.</p></div><div class="card"><span class="n">TRUST</span><h3>Verify the evidence</h3><p>Do not reduce a release decision to a boolean without the policy and evidence behind it.</p></div></div></div></section>
-<section class="final"><div class="wrap"><h2>Reconciliation should be reproducible, not remembered.</h2><p>Write the acceptance logic once, run it repeatedly, and keep enough evidence for another person to challenge the result.</p><div class="actions"><a class="btn primary" href="https://github.com/dkharlanau/reconciliation-as-code">Open repository</a><a class="btn" href="https://dkharlanau.github.io/products/">See the full toolkit</a></div></div></section></main><footer><div class="wrap">Reconciliation as Code · part of the Enterprise Transformation Toolkit by Dzmitryi Kharlanau.</div></footer></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Reconciliation as Code — Reproducible migration assurance</title>
+  <meta name="description" content="Define deterministic migration controls in YAML and retain reviewable evidence for source-to-target reconciliation.">
+  <link rel="canonical" href="https://dkharlanau.github.io/reconciliation-as-code/">
+  <link rel="stylesheet" href="https://dkharlanau.github.io/assets/toolkit-pages.css">
+</head>
+<body>
+  <header class="wrap top">
+    <a class="brand" href="https://github.com/dkharlanau/reconciliation-as-code">RECONCILIATION AS CODE</a>
+    <nav>
+      <a href="#why">Why</a>
+      <a href="#how">How</a>
+      <a href="#docs">Docs</a>
+      <a href="https://github.com/dkharlanau/reconciliation-as-code">GitHub ↗</a>
+    </nav>
+  </header>
+  <main>
+    <section class="wrap hero">
+      <div class="product-mark">Migration assurance</div>
+      <h1>Reconciliation as Code</h1>
+      <p class="lead">Version source-to-target controls in YAML, run them repeatedly, and retain evidence that shows what was compared, which differences remain, and which inputs produced the result.</p>
+      <div class="actions">
+        <a class="btn primary" href="https://github.com/dkharlanau/reconciliation-as-code#quick-start">Run the example</a>
+        <a class="btn" href="#docs">Read the docs</a>
+      </div>
+    </section>
+
+    <div class="wrap visual">
+      <div class="visual-head"><span>Assurance chain</span><span>Inputs → controls → evidence</span></div>
+      <div class="visual-body">
+        <div class="flow" style="--steps:5">
+          <div class="node"><small>01</small><b>Inputs</b><span>Files or SQL extracts</span></div>
+          <div class="node"><small>02</small><b>Spec</b><span>Scope, keys, checks</span></div>
+          <div class="node"><small>03</small><b>Run</b><span>Python or DuckDB</span></div>
+          <div class="node"><small>04</small><b>Decision</b><span>Pass, warn, fail</span></div>
+          <div class="node"><small>05</small><b>Evidence</b><span>JSON and review bundle</span></div>
+        </div>
+      </div>
+      <div class="visual-note">A result is useful only when another reviewer can reconstruct the control, inputs, and remaining discrepancies.</div>
+    </div>
+
+    <section class="section" id="why">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Why it exists</h2>
+          <p>Migration reconciliation often ends up split across temporary SQL, spreadsheets, screenshots, and sign-off notes. This project keeps the control logic and evidence contract versioned and repeatable.</p>
+        </div>
+        <div class="cards">
+          <div class="card"><span class="n">01</span><h3>Codify the control</h3><p>Define keys, scope, mappings, tolerances, hierarchy, identity changes, accepted exceptions, and materiality explicitly.</p></div>
+          <div class="card"><span class="n">02</span><h3>Run at useful scale</h3><p>Use CSV or Excel for straightforward work, DuckDB for supported CSV/Parquet controls, and runtime connection references for SQLite or PostgreSQL.</p></div>
+          <div class="card"><span class="n">03</span><h3>Retain provenance</h3><p>Canonical evidence records specification and input fingerprints. Optional bundles add offline HTML, XLSX, and CSV detail files with privacy controls.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="how">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>A deterministic operating loop</h2>
+          <p>Profile unfamiliar data, validate the specification, run the requested controls, and review evidence before using it for a cutover or release decision.</p>
+        </div>
+        <div class="example">
+          <div>
+            <h3>Typical commands</h3>
+            <pre>rac inspect examples/customer-migration/legacy.csv --json
+rac validate examples/customer-migration/reconciliation.yaml
+rac run examples/customer-migration/reconciliation.yaml \
+  --bundle build/evidence-bundle \
+  --no-fail-on-diff</pre>
+          </div>
+          <div>
+            <h3>Beyond a single comparison</h3>
+            <p><code>rac pipeline</code> localizes the first stage where drift appears. <code>rac diff</code> compares retained evidence from two rehearsals without requiring the original data.</p>
+            <div class="boundary">The tool evaluates outcomes. It does not move data, infer business acceptance, or authorize access to source systems.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="docs">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Technical documentation</h2>
+          <p>Use the quickstart for a first run, then select the reference that matches the migration shape or execution backend.</p>
+        </div>
+        <div class="cards">
+          <div class="card"><span class="n">START</span><h3><a href="https://github.com/dkharlanau/reconciliation-as-code/blob/main/docs/quickstart-real-data.md">Real-data quickstart</a></h3><p>Inspect two extracts, generate a first specification, validate it, and review the first result.</p></div>
+          <div class="card"><span class="n">MODEL</span><h3><a href="https://github.com/dkharlanau/reconciliation-as-code/blob/main/docs/specification.md">Specification reference</a></h3><p>Understand endpoints, checks, scopes, tolerances, mappings, hierarchy, identity, exceptions, and materiality.</p></div>
+          <div class="card"><span class="n">EVIDENCE</span><h3><a href="https://github.com/dkharlanau/reconciliation-as-code/blob/main/docs/evidence-bundle.md">Evidence and privacy</a></h3><p>Review bundle contents, fingerprints, data exposure, and masking, hashing, or omission policies.</p></div>
+          <div class="card"><span class="n">SCALE</span><h3><a href="https://github.com/dkharlanau/reconciliation-as-code/blob/main/docs/duckdb-backend.md">DuckDB backend</a></h3><p>See which controls run query-natively and where the reference Python backend remains required.</p></div>
+          <div class="card"><span class="n">DATABASES</span><h3><a href="https://github.com/dkharlanau/reconciliation-as-code/blob/main/docs/sql-adapters.md">SQL adapters</a></h3><p>Use connection references without placing DSNs or passwords in portable specifications and evidence.</p></div>
+          <div class="card"><span class="n">ALL DOCS</span><h3><a href="https://github.com/dkharlanau/reconciliation-as-code/blob/main/docs/index.md">Documentation hub</a></h3><p>Browse hierarchy, crosswalks, accepted exceptions, pipelines, rehearsal diff, SAP packs, distribution, and architecture.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section agent">
+      <div class="wrap">
+        <div class="product-mark">Agent entry point</div>
+        <div class="section-head"><h2>Automation must preserve the judgment boundary.</h2><p>The manifest describes the real CLI entry points and a conservative loop for agents. Tolerances, crosswalks, exceptions, and acceptance decisions remain explicit human-governed inputs.</p></div>
+        <div class="actions"><a class="btn" href="agent-manifest.json">Open agent manifest</a></div>
+      </div>
+    </section>
+
+    <section class="final">
+      <div class="wrap">
+        <h2>Reconciliation should be reproducible, not remembered.</h2>
+        <p>The repository includes synthetic examples, schemas, tests, benchmark tooling, and documented limits. It is a pre-1.0 project; evaluate it against your data, security, and review requirements.</p>
+        <div class="actions"><a class="btn primary" href="https://github.com/dkharlanau/reconciliation-as-code">Open repository</a><a class="btn" href="https://github.com/dkharlanau/reconciliation-as-code/blob/main/CONTRIBUTING.md">Contribute</a></div>
+      </div>
+    </section>
+  </main>
+  <footer><div class="wrap">Reconciliation as Code · MIT licensed.</div></footer>
+</body>
+</html>

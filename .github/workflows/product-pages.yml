@@ -3,7 +3,7 @@ name: Publish Product Page
 on:
   push:
     branches: [main]
-    paths: ["docs/product.html", "docs/agent-manifest.json", ".github/workflows/product-pages.yml"]
+    paths: ["docs/product.html", "docs/agent-manifest.json", "docs/index.md", ".github/workflows/product-pages.yml"]
   workflow_dispatch:
 
 permissions:

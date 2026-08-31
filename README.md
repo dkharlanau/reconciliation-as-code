@@ -23,7 +23,7 @@ The product is a **portable migration assurance layer**: prove that intended bus
 
 The first strong use case is SAP S/4HANA migration, while the runtime stays vendor-neutral.
 
-See [Product Strategy](PRODUCT_STRATEGY.md), [Product Backlog](BACKLOG.md), and [Roadmap](ROADMAP.md).
+See the [documentation hub](docs/index.md), [Product Strategy](PRODUCT_STRATEGY.md), [Product Backlog](BACKLOG.md), and [Roadmap](ROADMAP.md).
 
 ## What works today
 
@@ -335,6 +335,7 @@ versioned YAML control spec
 
 ## Documentation
 
+- [Documentation hub](docs/index.md)
 - [5-minute real-data quickstart](docs/quickstart-real-data.md)
 - [Specification reference](docs/specification.md)
 - [SQL source and target adapters](docs/sql-adapters.md)
@@ -347,6 +348,7 @@ versioned YAML control spec
 - [Compatibility policy](docs/compatibility.md)
 - [Evidence bundle and privacy controls](docs/evidence-bundle.md)
 - [Architecture and extension model](docs/architecture.md)
+- [Contributing guide](CONTRIBUTING.md)
 - [JSON Schemas](schema/)
 - [Product Strategy](PRODUCT_STRATEGY.md)
 - [Product Backlog](BACKLOG.md)

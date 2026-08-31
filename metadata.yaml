@@ -10,11 +10,11 @@ portfolio:
   sap_proof: 10
   brand_value: 9
 
-status: working-mvp
+status: migration-controls-alpha
 
 implementation:
   repository_created: true
-  implementation_status: alpha-mvp
+  implementation_status: feature-complete-alpha
   codex_fit: 5/5
   sap_access_required: false
   language: python
@@ -24,6 +24,10 @@ implementation:
 capabilities:
   - csv-reconciliation
   - excel-reconciliation
+  - parquet-reconciliation
+  - sqlite-reconciliation
+  - postgresql-reconciliation
+  - duckdb-backend
   - business-key-matching
   - duplicate-key-detection
   - record-coverage
@@ -34,6 +38,18 @@ capabilities:
   - row-count
   - evidence-json
   - evidence-markdown
+  - evidence-html
+  - evidence-xlsx
+  - evidence-detail-csv
+  - hierarchy-reconciliation
+  - identity-crosswalks
+  - merge-split-reconciliation
+  - governed-accepted-exceptions
+  - materiality-controls
+  - multi-stage-reconciliation
+  - rehearsal-diff
+  - mapping-artifact-references
+  - sap-starter-packs
   - ci-exit-codes
 
 principles:
