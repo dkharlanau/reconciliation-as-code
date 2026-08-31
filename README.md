@@ -336,6 +336,7 @@ versioned YAML control spec
 ## Documentation
 
 - [Documentation hub](docs/index.md)
+- [Runnable use-case gallery](https://dkharlanau.github.io/reconciliation-as-code/use-cases/)
 - [5-minute real-data quickstart](docs/quickstart-real-data.md)
 - [Specification reference](docs/specification.md)
 - [SQL source and target adapters](docs/sql-adapters.md)

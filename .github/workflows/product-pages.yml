@@ -3,7 +3,10 @@ name: Publish Product Page
 on:
   push:
     branches: [main]
-    paths: ["docs/product.html", "docs/agent-manifest.json", "docs/index.md", ".github/workflows/product-pages.yml"]
+    paths:
+      - "docs/**"
+      - "scripts/build_docs_site.py"
+      - ".github/workflows/product-pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -23,11 +26,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Stage product site
+      - name: Build documentation site
         run: |
-          mkdir -p _site
-          cp docs/product.html _site/index.html
-          cp docs/agent-manifest.json _site/agent-manifest.json
+          python scripts/build_docs_site.py --output _site
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4

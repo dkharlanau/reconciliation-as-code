@@ -2,6 +2,8 @@
 
 Reconciliation as Code defines repeatable source-to-target controls in YAML and produces evidence that can be reviewed by people or consumed by automation. Start with the quickstart, then use the references that match the shape and scale of the migration.
 
+The [runnable use-case gallery](https://dkharlanau.github.io/reconciliation-as-code/use-cases/) provides problem-first entry points for source-to-target, SAP S/4HANA, cutover, and grouped-control scenarios. Each page links back to a checked-in synthetic specification and command.
+
 ## Start here
 
 - [Real-data quickstart](quickstart-real-data.md) — inspect two extracts, generate a conservative first specification, validate it, and run it.
