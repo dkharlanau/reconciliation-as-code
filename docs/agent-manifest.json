@@ -16,8 +16,9 @@
   ],
   "safe_agent_loop": ["read README and the reconciliation specification", "profile unfamiliar datasets without modifying them", "validate", "inspect scopes, tolerances, crosswalks, exceptions, and materiality", "run the requested specification or pipeline range", "review evidence privacy and provenance", "return failures, policy context, and evidence references"],
   "related": [
-    {"product":"mapping-as-code","relationship":"transformation intent under test"},
-    {"product":"cutover-graph","relationship":"readiness evidence"},
-    {"product":"project-evidence-graph","relationship":"project claim support"}
+    {"product":"mapping-as-code","relationship":"direct pinned lookup consumption and reviewed starting-contract projection"},
+    {"product":"interface-as-code","relationship":"typed reconciliation.ref can point to RAC controls; Interface as Code does not execute them"},
+    {"product":"process-as-code","relationship":"generic artifact traceability from process or cutover gates to controls and evidence"},
+    {"product":"decision-tables-as-code","relationship":"bounded decisions remain independent; RAC does not infer controls from decision output"}
   ]
 }

@@ -349,24 +349,32 @@ versioned YAML control spec
 - [Compatibility policy](docs/compatibility.md)
 - [Evidence bundle and privacy controls](docs/evidence-bundle.md)
 - [Architecture and extension model](docs/architecture.md)
+- [As-code suite handoffs](docs/as-code-suite.md)
 - [Contributing guide](CONTRIBUTING.md)
 - [JSON Schemas](schema/)
 - [Product Strategy](PRODUCT_STRATEGY.md)
 - [Product Backlog](BACKLOG.md)
 
-## Relationship to the wider toolkit
+## Related projects
 
 `reconciliation-as-code` answers **“did the intended business state arrive correctly?”**. It is designed to compose with other versioned enterprise artifacts:
 
-- [Mapping as Code](https://github.com/dkharlanau/mapping-as-code) — how values and fields map;
-- [Transformation Graph](https://github.com/dkharlanau/transformation-graph) — how data changes across stages;
-- [Interface as Code](https://github.com/dkharlanau/interface-as-code) — how systems exchange data;
-- [Process as Code](https://github.com/dkharlanau/process-as-code) — how business execution is defined;
-- [Cutover Graph](https://github.com/dkharlanau/cutover-graph) — how migration/cutover activities depend on one another;
-- [Project Evidence Graph](https://github.com/dkharlanau/project-evidence-graph) — how delivery evidence is linked.
+See [Reconciliation as Code in the as-code suite](docs/as-code-suite.md) for the executable handoff and its limits.
+
+- [Mapping as Code](https://github.com/dkharlanau/mapping-as-code) — consume a pinned lookup mapping directly or review a generated starting reconciliation contract.
+- [Interface as Code](https://github.com/dkharlanau/interface-as-code) — retain a typed reference to the reconciliation control without implying that interface validation executes it.
+- [Process as Code](https://github.com/dkharlanau/process-as-code) — link a process or cutover gate to RAC controls and evidence through generic artifact traceability.
+- [Decision Tables as Code](https://github.com/dkharlanau/decision-tables-as-code) — govern bounded decisions independently; RAC does not infer controls from decision outputs.
 
 ## Status
 
-**Migration-controls alpha.** The product supports guided onboarding, enterprise-object hierarchy, changed identities/merge/split, scoped and grouped controls, governed exceptions, materiality, audit-grade evidence, a scalable flat-data DuckDB backend, and safe SQLite/PostgreSQL source/target adapters. The next P0 work is deeper SAP S/4HANA starter packs.
+**Migration-controls alpha.** The product supports guided onboarding, enterprise-object hierarchy, changed identities/merge/split, scoped and grouped controls, governed exceptions, materiality, audit-grade evidence, a scalable flat-data DuckDB backend, safe SQLite/PostgreSQL source/target adapters, and tested SAP S/4HANA starter packs. JSON/JSONL adapters, a plugin boundary, and first immutable public package/container releases remain future work.
 
 MIT licensed.
+
+## About the author
+
+Created and maintained by **Dzmitryi Kharlanau**, an SAP consultant and system analyst working across enterprise architecture, data, integration, operations, and practical AI.
+
+- [Website and knowledge base](https://dkharlanau.github.io/)
+- [LinkedIn](https://www.linkedin.com/in/dkharlanau/)

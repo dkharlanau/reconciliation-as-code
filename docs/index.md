@@ -25,6 +25,7 @@ The [runnable use-case gallery](https://dkharlanau.github.io/reconciliation-as-c
 - [DuckDB backend](duckdb-backend.md) — scalable flat CSV/Parquet reconciliation and supported control boundaries.
 - [SQL adapters](sql-adapters.md) — SQLite/PostgreSQL connection references and safe evidence provenance.
 - [Mapping as Code integration](mapping-as-code-integration.md) — consume a pinned lookup mapping without executing transformation code.
+- [As-code suite handoffs](as-code-suite.md) — direct mapping consumption and contextual interface/process navigation.
 - [SAP-native validation](sap-native-validation.md) — how the included SAP starter packs are structured and tested.
 - [Scale benchmarks](../benchmarks/README.md) — reproducible 100k, 1M, and 5M fixture generation and measurements.
 
