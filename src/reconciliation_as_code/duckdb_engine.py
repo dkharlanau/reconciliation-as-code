@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .errors import DataError
+from .io import validate_csv_header
 from .normalize import normalize_value
 from .spec import validate_spec
 
@@ -75,6 +76,7 @@ def _reader_sql(endpoint: dict[str, Any], path: Path) -> str:
     fmt = _format(endpoint, path)
     if fmt == "csv":
         delimiter = endpoint.get("delimiter", ",")
+        validate_csv_header(path, delimiter, case_insensitive=True)
         return (
             f"read_csv_auto({_lit(str(path))}, header=true, all_varchar=true, "
             f"delim={_lit(delimiter)})"

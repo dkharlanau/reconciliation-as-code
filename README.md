@@ -239,6 +239,15 @@ See:
 
 ## Evidence model
 
+Input integrity is checked before comparison. CSV and Excel headers must be non-empty
+and unique; Excel names are checked after whitespace trimming. The DuckDB CSV path
+also rejects names that differ only by case because its column identifiers are case
+insensitive. The Python CSV reader rejects malformed quoting and rows whose field
+count differs from the header. Use an explicit empty cell (`1,`) for a missing value
+in a two-column row; a truncated row (`1`) is an input error. Quoted multiline fields,
+UTF-8 BOMs and configured delimiters remain supported. Input errors return exit code
+`2`, and source files are never rewritten.
+
 A run creates canonical evidence containing:
 
 - spec/evidence version;
