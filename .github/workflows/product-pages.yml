@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths:
+      - ".arwp/**"
+      - "scripts/stage-arwp.mjs"
       - "docs/**"
       - "scripts/build_docs_site.py"
       - ".github/workflows/product-pages.yml"
@@ -31,6 +33,8 @@ jobs:
           python scripts/build_docs_site.py --output _site
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
+      - name: Stage verified ARWP profile and discovery
+        run: node scripts/stage-arwp.mjs _site
       - name: Add consent-aware portfolio analytics
         run: node scripts/inject-portfolio-analytics.mjs _site
       - uses: actions/upload-pages-artifact@v4
