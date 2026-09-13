@@ -6,7 +6,8 @@ The [runnable use-case gallery](https://dkharlanau.github.io/reconciliation-as-c
 
 ## Start here
 
-- [Real-data quickstart](quickstart-real-data.md) — inspect two extracts, generate a conservative first specification, validate it, and run it.
+- [Real-data quickstart](quickstart-real-data.md) — start with the guarded `rac preflight` path for two ordinary exports, or use `inspect` + `init` when mappings require explicit review.
+- [SAP Customer → Business Partner preflight fixture](../examples/sap-s4hana/customer-bp-preflight/) — one-command synthetic example with a new BP technical ID, preserved legacy key, and an intentional mismatch.
 - [Specification reference](specification.md) — source and target definitions, checks, tolerances, scopes, and evidence behavior.
 - [Architecture and extension boundaries](architecture.md) — runtime structure, deterministic core, and current limits.
 - [Compatibility policy](compatibility.md) — versioning expectations for specifications and evidence.
