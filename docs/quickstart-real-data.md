@@ -2,6 +2,43 @@
 
 This workflow is designed for the common starting point: two CSV or Excel exports and no existing reconciliation YAML.
 
+## Fast path: guarded preflight
+
+When the two exports have a clear business key and the comparable fields can be mapped conservatively, start with one command:
+
+```bash
+rac preflight source.csv target.csv \
+  --output-dir build/preflight
+```
+
+`rac preflight` reuses the same deterministic `inspect -> init -> run` semantics as the normal CLI. It writes a generated `reconciliation.yaml` first and executes it only when the generated control contains no unresolved field-mapping TODOs.
+
+Expected artifacts after an executable preflight:
+
+```text
+build/preflight/
+  reconciliation.yaml
+  evidence.json
+  evidence.md
+```
+
+If the business key cannot be selected safely, provide it explicitly or use `--interactive`:
+
+```bash
+rac preflight legacy.csv s4.csv \
+  --source-key LEGACY_ID \
+  --target-key LEGACY_ID \
+  --output-dir build/preflight
+```
+
+If source and target fields still require semantic review, preflight stops with `status=needs_review`. It leaves the generated YAML and its `# TODO:` comments for review and does **not** create reconciliation evidence.
+
+Preflight is diagnostic by default: a completed reconciliation may report `failed` while the command still exits `0`, so a consultant can inspect the evidence. Add `--fail-on-diff` only when a reviewed preflight should fail automation on differences.
+
+A generated preflight is not cutover sign-off. It does not invent value maps, tolerances, crosswalks, expected counts, hierarchy semantics, or business acceptance rules. For complex changed identities and repeating SAP business objects, start from the relevant project-grade starter pack instead.
+
+The runnable SAP example is the [Customer → Business Partner preflight fixture](https://github.com/dkharlanau/reconciliation-as-code/tree/main/examples/sap-s4hana/customer-bp-preflight).
+
 ## 1. Inspect both files
 
 ```bash

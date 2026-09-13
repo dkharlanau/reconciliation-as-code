@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -91,6 +92,106 @@ class ProfilingTests(unittest.TestCase):
             spec = load_spec(output)
             self.assertTrue((output.parent / spec["source"]["file"]).resolve().exists())
             self.assertTrue((output.parent / spec["target"]["file"]).resolve().exists())
+
+    def test_cli_preflight_runs_review_complete_generated_spec(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            source = base / "legacy-customers.csv"
+            target = base / "s4-business-partners.csv"
+            output_dir = base / "preflight"
+            write_csv(
+                source,
+                [
+                    {"LEGACY_ID": "1001", "NAME": "Alpha", "COUNTRY": "DE"},
+                    {"LEGACY_ID": "1002", "NAME": "Beta", "COUNTRY": "US"},
+                ],
+            )
+            write_csv(
+                target,
+                [
+                    {"LEGACY_ID": "1001", "NAME": "Alpha", "COUNTRY": "DE", "BusinessPartner": "9001"},
+                    {"LEGACY_ID": "1002", "NAME": "Beta", "COUNTRY": "US", "BusinessPartner": "9002"},
+                ],
+            )
+
+            code = cli_main(
+                [
+                    "preflight",
+                    str(source),
+                    str(target),
+                    "--source-key",
+                    "LEGACY_ID",
+                    "--target-key",
+                    "LEGACY_ID",
+                    "--output-dir",
+                    str(output_dir),
+                ]
+            )
+
+            self.assertEqual(0, code)
+            self.assertTrue((output_dir / "reconciliation.yaml").exists())
+            self.assertTrue((output_dir / "evidence.json").exists())
+            self.assertTrue((output_dir / "evidence.md").exists())
+            evidence = json.loads((output_dir / "evidence.json").read_text(encoding="utf-8"))
+            self.assertEqual("passed", evidence["status"])
+
+    def test_cli_preflight_stops_when_field_mapping_review_is_required(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            source = base / "legacy.csv"
+            target = base / "s4.csv"
+            output_dir = base / "preflight"
+            write_csv(
+                source,
+                [
+                    {"LEGACY_ID": "1001", "LEGACY_NAME": "Alpha"},
+                    {"LEGACY_ID": "1002", "LEGACY_NAME": "Beta"},
+                ],
+            )
+            write_csv(
+                target,
+                [
+                    {"LEGACY_ID": "1001", "BUSINESS_PARTNER_NAME": "Alpha"},
+                    {"LEGACY_ID": "1002", "BUSINESS_PARTNER_NAME": "Beta"},
+                ],
+            )
+
+            code = cli_main(
+                [
+                    "preflight",
+                    str(source),
+                    str(target),
+                    "--source-key",
+                    "LEGACY_ID",
+                    "--target-key",
+                    "LEGACY_ID",
+                    "--output-dir",
+                    str(output_dir),
+                ]
+            )
+
+            self.assertEqual(0, code)
+            self.assertTrue((output_dir / "reconciliation.yaml").exists())
+            self.assertFalse((output_dir / "evidence.json").exists())
+            self.assertIn("# TODO:", (output_dir / "reconciliation.yaml").read_text(encoding="utf-8"))
+
+    def test_cli_preflight_reports_differences_without_failing_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            source = base / "source.csv"
+            target = base / "target.csv"
+            output_dir = base / "preflight"
+            write_csv(source, [{"ID": "1", "VALUE": "A"}, {"ID": "2", "VALUE": "B"}])
+            write_csv(target, [{"ID": "1", "VALUE": "A"}, {"ID": "2", "VALUE": "WRONG"}])
+
+            args = ["preflight", str(source), str(target), "--output-dir", str(output_dir)]
+            code = cli_main(args)
+            self.assertEqual(0, code)
+            evidence = json.loads((output_dir / "evidence.json").read_text(encoding="utf-8"))
+            self.assertEqual("failed", evidence["status"])
+
+            strict_code = cli_main(args + ["--force", "--fail-on-diff"])
+            self.assertEqual(1, strict_code)
 
     def test_excel_inspection_uses_sheet_and_detects_key(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

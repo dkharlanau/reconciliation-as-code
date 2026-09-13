@@ -5,16 +5,17 @@
   "human_url": "https://dkharlanau.github.io/reconciliation-as-code/",
   "repository": "https://github.com/dkharlanau/reconciliation-as-code",
   "boundaries": ["not a data movement or ETL engine", "do not invent tolerances, crosswalks, or accepted exceptions", "validate specifications before execution", "do not publish evidence before reviewing its data exposure"],
-  "capabilities": ["profile CSV and Excel datasets", "generate a conservative first specification", "validate reconciliation specifications", "run flat, scoped, grouped, hierarchy, identity, and materiality controls", "run CSV, Excel, Parquet, SQLite, and PostgreSQL inputs within documented backend limits", "run ordered migration pipelines", "compare retained rehearsal evidence", "build evidence bundles with provenance and privacy controls"],
+  "capabilities": ["profile CSV and Excel datasets", "generate a conservative first specification", "run a guarded two-export preflight that stops before execution when field mappings still require review", "validate reconciliation specifications", "run flat, scoped, grouped, hierarchy, identity, and materiality controls", "run CSV, Excel, Parquet, SQLite, and PostgreSQL inputs within documented backend limits", "run ordered migration pipelines", "compare retained rehearsal evidence", "build evidence bundles with provenance and privacy controls"],
   "entrypoints": [
     {"type":"cli","command":"rac inspect <dataset.csv> --json"},
     {"type":"cli","command":"rac init <source.csv> <target.csv> --output reconciliation.yaml"},
+    {"type":"cli","command":"rac preflight <source.csv> <target.csv> --output-dir build/preflight"},
     {"type":"cli","command":"rac validate <reconciliation.yaml>"},
     {"type":"cli","command":"rac run <reconciliation.yaml>"},
     {"type":"cli","command":"rac pipeline <pipeline.yaml>"},
     {"type":"cli","command":"rac diff <baseline-evidence.json> <current-evidence.json>"}
   ],
-  "safe_agent_loop": ["read README and the reconciliation specification", "profile unfamiliar datasets without modifying them", "validate", "inspect scopes, tolerances, crosswalks, exceptions, and materiality", "run the requested specification or pipeline range", "review evidence privacy and provenance", "return failures, policy context, and evidence references"],
+  "safe_agent_loop": ["read README and the reconciliation specification", "profile unfamiliar datasets without modifying them", "use preflight only when a conservative generated control is appropriate and stop when review TODOs remain", "validate", "inspect scopes, tolerances, crosswalks, exceptions, and materiality", "run the requested specification or pipeline range", "review evidence privacy and provenance", "return failures, policy context, and evidence references"],
   "related": [
     {"product":"mapping-as-code","relationship":"direct pinned lookup consumption and reviewed starting-contract projection"},
     {"product":"interface-as-code","relationship":"typed reconciliation.ref can point to RAC controls; Interface as Code does not execute them"},

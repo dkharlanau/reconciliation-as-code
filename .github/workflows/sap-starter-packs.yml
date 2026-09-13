@@ -27,6 +27,15 @@ jobs:
           rac validate examples/sap-s4hana/finance-inventory-balances/finance-reconciliation.yaml
           rac validate examples/sap-s4hana/finance-inventory-balances/inventory-reconciliation.yaml
 
+      - name: Run Customer to BP preflight
+        run: >-
+          rac preflight
+          examples/sap-s4hana/customer-bp-preflight/legacy-customers.csv
+          examples/sap-s4hana/customer-bp-preflight/s4-business-partners.csv
+          --source-key LEGACY_ID
+          --target-key LEGACY_ID
+          --output-dir build/sap/customer-bp-preflight
+
       - name: Run Customer to BP pack
         run: >-
           rac run examples/sap-s4hana/customer-to-bp/reconciliation.yaml
@@ -70,7 +79,9 @@ jobs:
           python -c "import json;
           load=lambda n:json.load(open('build/sap/'+n+'.json'));
           customer=load('customer-bp'); supplier=load('supplier-bp'); material=load('material-product'); finance=load('finance'); inventory=load('inventory');
+          preflight=json.load(open('build/sap/customer-bp-preflight/evidence.json'));
           check=lambda r,i:next(c for c in r['checks'] if c['id']==i);
+          assert preflight['status']=='failed' and check(preflight,'field-country')['metrics']['mismatches']==1;
           assert customer['status']=='failed';
           assert check(customer,'child:addresses:postal-code')['metrics']['mismatches']==1;
           assert check(customer,'child:sales_areas:coverage')['metrics']['missing_in_target']==1;
@@ -78,4 +89,4 @@ jobs:
           assert material['status']=='failed' and check(material,'child:plant_views:min-lot')['metrics']['mismatches']==1;
           assert finance['status']=='failed' and check(finance,'amount-by-company-currency')['metrics']['groups_failed']==1;
           assert inventory['status']=='failed' and check(inventory,'quantity-by-plant')['metrics']['groups_failed']==1;
-          print('all SAP starter packs produced expected evidence')"
+          print('SAP preflight and starter packs produced expected evidence')"
