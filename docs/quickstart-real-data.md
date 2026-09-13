@@ -37,7 +37,7 @@ Preflight is diagnostic by default: a completed reconciliation may report `faile
 
 A generated preflight is not cutover sign-off. It does not invent value maps, tolerances, crosswalks, expected counts, hierarchy semantics, or business acceptance rules. For complex changed identities and repeating SAP business objects, start from the relevant project-grade starter pack instead.
 
-The runnable SAP example is [`examples/sap-s4hana/customer-bp-preflight/`](../examples/sap-s4hana/customer-bp-preflight/).
+The runnable SAP example is the [Customer → Business Partner preflight fixture](https://github.com/dkharlanau/reconciliation-as-code/tree/main/examples/sap-s4hana/customer-bp-preflight).
 
 ## 1. Inspect both files
 
