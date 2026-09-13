@@ -7,7 +7,7 @@ The [runnable use-case gallery](https://dkharlanau.github.io/reconciliation-as-c
 ## Start here
 
 - [Real-data quickstart](quickstart-real-data.md) — start with the guarded `rac preflight` path for two ordinary exports, or use `inspect` + `init` when mappings require explicit review.
-- [SAP Customer → Business Partner preflight fixture](../examples/sap-s4hana/customer-bp-preflight/) — one-command synthetic example with a new BP technical ID, preserved legacy key, and an intentional mismatch.
+- [SAP Customer → Business Partner preflight fixture](https://github.com/dkharlanau/reconciliation-as-code/tree/main/examples/sap-s4hana/customer-bp-preflight) — one-command synthetic example with a new BP technical ID, preserved legacy key, and an intentional mismatch.
 - [Specification reference](specification.md) — source and target definitions, checks, tolerances, scopes, and evidence behavior.
 - [Architecture and extension boundaries](architecture.md) — runtime structure, deterministic core, and current limits.
 - [Compatibility policy](compatibility.md) — versioning expectations for specifications and evidence.
@@ -36,4 +36,4 @@ The [runnable use-case gallery](https://dkharlanau.github.io/reconciliation-as-c
 - [Distribution and release](distribution.md) — source install, composite Action, container, and release gates.
 - [Agent manifest](agent-manifest.json) — machine-readable capabilities and safe operating loop.
 
-Runnable examples live under [`examples/`](../examples/). They use synthetic data and are exercised in continuous integration. Reconciliation evidence can still contain sensitive values when used on real data; review the evidence policy before publishing or attaching generated artifacts.
+Runnable examples live under [`examples/`](https://github.com/dkharlanau/reconciliation-as-code/tree/main/examples/). They use synthetic data and are exercised in continuous integration. Reconciliation evidence can still contain sensitive values when used on real data; review the evidence policy before publishing or attaching generated artifacts.
