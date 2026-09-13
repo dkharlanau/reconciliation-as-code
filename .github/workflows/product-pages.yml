@@ -6,6 +6,7 @@ on:
     paths:
       - ".arwp/**"
       - "scripts/stage-arwp.mjs"
+      - "scripts/inject-goose-proof-mark.mjs"
       - "docs/**"
       - "scripts/build_docs_site.py"
       - ".github/workflows/product-pages.yml"
@@ -35,6 +36,8 @@ jobs:
       - uses: actions/configure-pages@v5
       - name: Stage verified ARWP profile and discovery
         run: node scripts/stage-arwp.mjs _site
+      - name: Add Goose ARWP Proof Mark
+        run: node scripts/inject-goose-proof-mark.mjs _site
       - name: Add consent-aware portfolio analytics
         run: node scripts/inject-portfolio-analytics.mjs _site
       - uses: actions/upload-pages-artifact@v4
